@@ -23,7 +23,7 @@ function MainContent() {
       <header className="bg-white border-b border-black/5 flex items-center justify-between px-6 py-3 shadow-sm z-50">
         <div className="flex items-center gap-8">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-emerald-600">NutriPlan Pro</h1>
+            <h1 className="text-xl font-bold tracking-tight text-emerald-600">NutriPlan+</h1>
           </div>
           
           <nav className="flex items-center gap-1">

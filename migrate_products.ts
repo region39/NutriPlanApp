@@ -2,6 +2,59 @@ import Database from "better-sqlite3";
 
 const db = new Database("nutriplan.db");
 
+// Initialize Database structure if not exists
+db.exec(`
+  CREATE TABLE IF NOT EXISTS products (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    proteins REAL DEFAULT 0,
+    fats REAL DEFAULT 0,
+    carbs REAL DEFAULT 0,
+    kcal REAL DEFAULT 0,
+    portion REAL DEFAULT 100,
+    is_custom INTEGER DEFAULT 0,
+    is_ready_meal INTEGER DEFAULT 0,
+    image TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS dishes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    proteins REAL DEFAULT 0,
+    fats REAL DEFAULT 0,
+    carbs REAL DEFAULT 0,
+    kcal REAL DEFAULT 0,
+    portion REAL DEFAULT 100,
+    image TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS dish_ingredients (
+    dish_id INTEGER,
+    product_id INTEGER,
+    weight REAL,
+    FOREIGN KEY(dish_id) REFERENCES dishes(id),
+    FOREIGN KEY(product_id) REFERENCES products(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS plans (
+    id TEXT PRIMARY KEY,
+    client_name TEXT NOT NULL,
+    target_kcal INTEGER DEFAULT 2000,
+    target_proteins REAL DEFAULT 150,
+    target_fats REAL DEFAULT 70,
+    target_carbs REAL DEFAULT 250,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    start_date TEXT,
+    end_date TEXT,
+    data TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT
+  );
+`);
+
 const csvData = `Продукт;Белки (г);Жиры (г);Углеводы (г);Ккал
 **Мясо и птица**;;;;
 Говядина отварная;18,9;12,4;0;187
