@@ -9,6 +9,7 @@ export interface Product {
   is_custom?: number;
   is_ready_meal?: number;
   image?: string | null;
+  categories?: string[];
 }
 
 export interface Dish {
@@ -20,12 +21,14 @@ export interface Dish {
   kcal: number;
   portion: number;
   image?: string | null;
+  categories?: string[];
   ingredients?: { productId: number; weight: number }[];
 }
 
 export interface MealItem {
   id: string;
   name: string;
+  categoryName?: string;
   weight: number; // in grams
   proteins: number; // calculated
   fats: number; // calculated
@@ -54,6 +57,8 @@ export interface DietPlan {
   createdAt: string;
   startDate?: string;
   endDate?: string;
+  mealTypes?: { id: string; label: string }[];
+  mealCategories?: string[];
   data: {
     [day: string]: DayPlan;
   };

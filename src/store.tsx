@@ -22,6 +22,7 @@ interface AppContextType {
   duplicatePlan: (id: string) => Promise<void>;
   createNewPlan: (clientName: string, targetKcal: number, startDate?: string, endDate?: string) => void;
   updatePlan: (plan: DietPlan) => void;
+  updatePlanSettings: (mealTypes: { id: string; label: string }[], mealCategories: string[]) => void;
   updateSettings: (settings: Settings) => Promise<void>;
   loadProducts: () => Promise<void>;
   loadDishes: () => Promise<void>;
@@ -60,12 +61,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Normalize data to only include current DAYS
     const normalizedData: any = {};
     DAYS.forEach(day => {
-      // Try to find existing data for this day, or fallback to old day1-day7 mapping if needed
-      // (though we prefer the new IDs)
       normalizedData[day.id] = data.data[day.id] || { meals: [] };
     });
     
-    setCurrentPlan({ ...data, data: normalizedData });
+    setCurrentPlan({ 
+      ...data, 
+      data: normalizedData,
+      mealTypes: data.mealTypes || settings.mealTypes,
+      mealCategories: data.mealCategories || settings.mealCategories
+    });
   };
 
   const savePlan = async (plan: DietPlan) => {
@@ -137,6 +141,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
       startDate,
       endDate,
+      mealTypes: [...settings.mealTypes],
+      mealCategories: [...settings.mealCategories],
       data: emptyData
     };
     setCurrentPlan(newPlan);
@@ -145,6 +151,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updatePlan = (plan: DietPlan) => {
     console.log('Updating plan state:', plan.clientName);
     setCurrentPlan({ ...plan });
+  };
+
+  const updatePlanSettings = (mealTypes: { id: string; label: string }[], mealCategories: string[]) => {
+    if (!currentPlan) return;
+    setCurrentPlan({
+      ...currentPlan,
+      mealTypes,
+      mealCategories
+    });
   };
 
   const loadProducts = async () => {

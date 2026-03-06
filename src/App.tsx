@@ -29,15 +29,15 @@ function MainContent() {
           <nav className="flex items-center gap-1">
             <button 
               onClick={() => setActiveTab('dashboard')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-emerald-50 text-emerald-700 font-medium' : 'hover:bg-gray-50 text-gray-500'}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-none transition-all ${activeTab === 'dashboard' ? 'bg-emerald-50 text-emerald-700 font-medium' : 'hover:bg-gray-50 text-gray-500'}`}
             >
               <LayoutDashboard size={18} />
-              <span className="text-sm">Журнал</span>
+              <span className="text-sm">Журнал рационов</span>
             </button>
             
             <button 
               onClick={() => setActiveTab('planner')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${activeTab === 'planner' ? 'bg-emerald-50 text-emerald-700 font-medium' : 'hover:bg-gray-50 text-gray-500'}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-none transition-all ${activeTab === 'planner' ? 'bg-emerald-50 text-emerald-700 font-medium' : 'hover:bg-gray-50 text-gray-500'}`}
             >
               <Calendar size={18} />
               <span className="text-sm">Планировщик</span>
@@ -45,7 +45,7 @@ function MainContent() {
 
             <button 
               onClick={() => setActiveTab('dishes')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${activeTab === 'dishes' ? 'bg-emerald-50 text-emerald-700 font-medium' : 'hover:bg-gray-50 text-gray-500'}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-none transition-all ${activeTab === 'dishes' ? 'bg-emerald-50 text-emerald-700 font-medium' : 'hover:bg-gray-50 text-gray-500'}`}
             >
               <Utensils size={18} />
               <span className="text-sm">Конструктор блюд</span>
@@ -53,7 +53,7 @@ function MainContent() {
             
             <button 
               onClick={() => setActiveTab('database')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${activeTab === 'database' ? 'bg-emerald-50 text-emerald-700 font-medium' : 'hover:bg-gray-50 text-gray-500'}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-none transition-all ${activeTab === 'database' ? 'bg-emerald-50 text-emerald-700 font-medium' : 'hover:bg-gray-50 text-gray-500'}`}
             >
               <DbIcon size={18} />
               <span className="text-sm">База продуктов</span>
@@ -61,7 +61,7 @@ function MainContent() {
             
             <button 
               onClick={() => setActiveTab('settings')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${activeTab === 'settings' ? 'bg-emerald-50 text-emerald-700 font-medium' : 'hover:bg-gray-50 text-gray-500'}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-none transition-all ${activeTab === 'settings' ? 'bg-emerald-50 text-emerald-700 font-medium' : 'hover:bg-gray-50 text-gray-500'}`}
             >
               <SettingsIcon size={18} />
               <span className="text-sm">Настройки</span>
@@ -83,7 +83,7 @@ function MainContent() {
           </button>
           
           {currentPlan && (
-            <div className="flex items-center gap-3 bg-emerald-50 px-4 py-1.5 rounded-full border border-emerald-100">
+            <div className="flex items-center gap-3 bg-emerald-50 px-4 py-1.5 rounded-none border border-emerald-100">
               <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Активный:</p>
               <p className="text-sm font-medium text-emerald-900">{currentPlan.clientName}</p>
             </div>

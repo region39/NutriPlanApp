@@ -151,18 +151,18 @@ export const Dashboard: React.FC<{ onSelectPlan: () => void }> = ({ onSelectPlan
     <div className="p-8 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Журнал проектов</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Журнал рационов</h2>
           <p className="text-gray-500">Управляйте рационами ваших клиентов</p>
         </div>
         <div className="flex gap-3">
-          <label className="bg-white border border-black/10 text-gray-700 px-6 py-3 rounded-xl font-medium flex items-center gap-2 hover:bg-gray-50 transition-colors cursor-pointer shadow-sm">
+          <label className="bg-white border border-black/10 text-gray-700 px-6 py-3 rounded-none font-medium flex items-center gap-2 hover:bg-gray-50 transition-colors cursor-pointer shadow-sm">
             <Upload size={20} />
             <span>Импорт</span>
             <input type="file" multiple accept=".json" className="hidden" onChange={handleImportPlans} />
           </label>
           <button 
             onClick={() => setShowNewModal(true)}
-            className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-medium flex items-center gap-2 hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-600/20"
+            className="bg-emerald-600 text-white px-6 py-3 rounded-none font-medium flex items-center gap-2 hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-600/20"
           >
             <Plus size={20} />
             <span>Новый рацион</span>
@@ -172,14 +172,14 @@ export const Dashboard: React.FC<{ onSelectPlan: () => void }> = ({ onSelectPlan
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="lg:col-span-3 space-y-6">
-          <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-none border border-black/5 shadow-sm overflow-hidden">
             <div className="p-4 border-b border-black/5 bg-gray-50/50 flex flex-wrap gap-4 items-center justify-between">
               <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <input 
                   type="text" 
                   placeholder="Поиск по имени клиента..." 
-                  className="w-full pl-10 pr-4 py-2 bg-white border border-black/5 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  className="w-full pl-10 pr-4 py-2 bg-white border border-black/5 rounded-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
@@ -187,7 +187,7 @@ export const Dashboard: React.FC<{ onSelectPlan: () => void }> = ({ onSelectPlan
               <div className="flex gap-2">
                 <button 
                   onClick={() => setSortBy(sortBy === 'date' ? 'name' : 'date')}
-                  className="px-3 py-2 bg-white border border-black/5 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-gray-100 transition-colors"
+                  className="px-3 py-2 bg-white border border-black/5 rounded-none text-xs font-bold flex items-center gap-2 hover:bg-gray-100 transition-colors"
                 >
                   <ArrowUpDown size={14} />
                   {sortBy === 'date' ? 'Сначала новые' : 'По алфавиту'}
@@ -255,31 +255,31 @@ export const Dashboard: React.FC<{ onSelectPlan: () => void }> = ({ onSelectPlan
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-2 opacity-100 transition-opacity">
                     <button 
                       onClick={() => { loadPlan(plan.id); onSelectPlan(); }}
-                      className="p-2 hover:bg-emerald-100 text-emerald-600 rounded-lg transition-colors"
+                      className="p-2 hover:bg-emerald-100 text-emerald-600 rounded-none transition-colors"
                       title="Открыть"
                     >
                       <ExternalLink size={18} />
                     </button>
                     <button 
                       onClick={() => handleExportPlan(plan.id)}
-                      className="p-2 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors"
+                      className="p-2 hover:bg-blue-100 text-blue-600 rounded-none transition-colors"
                       title="Экспорт"
                     >
                       <Download size={18} />
                     </button>
                     <button 
                       onClick={() => duplicatePlan(plan.id)}
-                      className="p-2 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors"
+                      className="p-2 hover:bg-blue-100 text-blue-600 rounded-none transition-colors"
                       title="Дублировать"
                     >
                       <Copy size={18} />
                     </button>
                     <button 
                       onClick={() => handleDeletePlan(plan.id)}
-                      className={`p-2 rounded-lg transition-all ${confirmDeleteId === plan.id ? 'bg-red-600 text-white opacity-100' : 'hover:bg-red-100 text-red-600 opacity-0 group-hover:opacity-100'}`}
+                      className={`p-2 rounded-none transition-all ${confirmDeleteId === plan.id ? 'bg-red-600 text-white opacity-100' : 'hover:bg-red-100 text-red-600 opacity-100'}`}
                       title={confirmDeleteId === plan.id ? "Нажмите еще раз" : "Удалить"}
                     >
                       {confirmDeleteId === plan.id ? <span className="text-[10px] font-bold">УДАЛИТЬ?</span> : <Trash2 size={18} />}
@@ -298,7 +298,7 @@ export const Dashboard: React.FC<{ onSelectPlan: () => void }> = ({ onSelectPlan
 
         {/* Rules Panel */}
         <div className="lg:col-span-1">
-          <div className="bg-white p-6 rounded-2xl border border-black/5 shadow-sm sticky top-8">
+          <div className="bg-white p-6 rounded-none border border-black/5 shadow-sm sticky top-8">
             <div className="flex items-center gap-2 mb-4 text-emerald-600">
               <Info size={20} />
               <h3 className="font-bold uppercase tracking-wider text-xs">Правила импорта</h3>
@@ -306,7 +306,7 @@ export const Dashboard: React.FC<{ onSelectPlan: () => void }> = ({ onSelectPlan
             <div className="space-y-4 text-sm text-gray-600">
               <p>
                 <strong className="text-gray-900 block mb-1">Формат файлов:</strong>
-                Используйте только файлы <code className="bg-gray-100 px-1 rounded">.json</code>, экспортированные из NutriPlan Pro.
+                Используйте только файлы <code className="bg-gray-100 px-1 rounded-none">.json</code>, экспортированные из NutriPlan Pro.
               </p>
               <p>
                 <strong className="text-gray-900 block mb-1">Массовая загрузка:</strong>
@@ -316,7 +316,7 @@ export const Dashboard: React.FC<{ onSelectPlan: () => void }> = ({ onSelectPlan
                 <strong className="text-gray-900 block mb-1">Дубликаты:</strong>
                 При импорте проекта с существующим ID, он будет обновлен.
               </p>
-              <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 text-blue-700 text-xs">
+              <div className="p-4 bg-blue-50 rounded-none border border-blue-100 text-blue-700 text-xs">
                 Экспортируйте важные рационы для создания резервных копий или передачи коллегам.
               </div>
             </div>
@@ -327,7 +327,7 @@ export const Dashboard: React.FC<{ onSelectPlan: () => void }> = ({ onSelectPlan
       {/* New Plan Modal */}
       {showNewModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+          <div className="bg-white rounded-none shadow-2xl w-full max-w-md overflow-hidden">
             <div className="p-6 border-b border-black/5">
               <h3 className="text-xl font-bold">Создать новый рацион</h3>
             </div>
@@ -336,7 +336,7 @@ export const Dashboard: React.FC<{ onSelectPlan: () => void }> = ({ onSelectPlan
                 <label className="block text-sm font-medium text-gray-700 mb-1">Имя клиента</label>
                 <input 
                   type="text" 
-                  className="w-full px-4 py-2 border border-black/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  className="w-full px-4 py-2 border border-black/10 rounded-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder="Напр. Иван Иванов"
@@ -346,7 +346,7 @@ export const Dashboard: React.FC<{ onSelectPlan: () => void }> = ({ onSelectPlan
                 <label className="block text-sm font-medium text-gray-700 mb-1">Целевой калораж (ккал)</label>
                 <input 
                   type="number" 
-                  className="w-full px-4 py-2 border border-black/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  className="w-full px-4 py-2 border border-black/10 rounded-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                   value={newKcal}
                   onChange={(e) => setNewKcal(Number(e.target.value))}
                 />
@@ -356,7 +356,7 @@ export const Dashboard: React.FC<{ onSelectPlan: () => void }> = ({ onSelectPlan
                   <label className="block text-sm font-medium text-gray-700 mb-1">Дата начала</label>
                   <input 
                     type="date" 
-                    className="w-full px-4 py-2 border border-black/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    className="w-full px-4 py-2 border border-black/10 rounded-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                     value={newStartDate}
                     onChange={(e) => setNewStartDate(e.target.value)}
                   />
@@ -365,7 +365,7 @@ export const Dashboard: React.FC<{ onSelectPlan: () => void }> = ({ onSelectPlan
                   <label className="block text-sm font-medium text-gray-700 mb-1">Дата окончания</label>
                   <input 
                     type="date" 
-                    className="w-full px-4 py-2 border border-black/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    className="w-full px-4 py-2 border border-black/10 rounded-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                     value={newEndDate}
                     onChange={(e) => setNewEndDate(e.target.value)}
                   />
@@ -375,13 +375,13 @@ export const Dashboard: React.FC<{ onSelectPlan: () => void }> = ({ onSelectPlan
             <div className="p-6 bg-gray-50 flex gap-3">
               <button 
                 onClick={() => setShowNewModal(false)}
-                className="flex-1 px-4 py-2 border border-black/10 rounded-xl font-medium hover:bg-white transition-colors"
+                className="flex-1 px-4 py-2 border border-black/10 rounded-none font-medium hover:bg-white transition-colors"
               >
                 Отмена
               </button>
               <button 
                 onClick={handleCreate}
-                className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors"
+                className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-none font-medium hover:bg-emerald-700 transition-colors"
               >
                 Создать
               </button>

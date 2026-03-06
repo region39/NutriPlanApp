@@ -38,7 +38,7 @@ export const Database: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
-  const filteredProducts = products.filter(p => 
+  const filteredProducts = (products || []).filter(p => 
     p.name.toLowerCase().includes(search.toLowerCase()) && 
     p.is_ready_meal !== 1
   );
@@ -178,7 +178,7 @@ export const Database: React.FC = () => {
           </button>
           <button 
             onClick={() => handleOpenModal()}
-            className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-medium flex items-center gap-2 hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-600/20"
+            className="bg-emerald-600 text-white px-6 py-3 rounded-none font-medium flex items-center gap-2 hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-600/20"
           >
             <Plus size={20} />
             <span>Добавить продукт</span>
@@ -186,14 +186,14 @@ export const Database: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-none border border-black/5 shadow-sm overflow-hidden">
         <div className="p-4 border-b border-black/5 bg-gray-50/50">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input 
               type="text" 
               placeholder="Поиск по названию..." 
-              className="w-full pl-10 pr-4 py-2 bg-white border border-black/5 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              className="w-full pl-10 pr-4 py-2 bg-white border border-black/5 rounded-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -260,7 +260,7 @@ export const Database: React.FC = () => {
       {/* Product Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+          <div className="bg-white rounded-none shadow-2xl w-full max-w-md overflow-hidden">
             <div className="p-6 border-b border-black/5">
               <h3 className="text-xl font-bold">{editingProduct ? 'Редактировать продукт' : 'Новый продукт'}</h3>
               <p className="text-xs text-gray-400">Укажите данные на 100г продукта</p>

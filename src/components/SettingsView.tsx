@@ -1,68 +1,155 @@
 import React, { useState } from 'react';
 import { useApp } from '../store';
-import { Settings as SettingsIcon, Info, Plus, Trash2, Utensils } from 'lucide-react';
+import { Settings as SettingsIcon, Info, Plus, Trash2, Utensils, ChevronUp, ChevronDown } from 'lucide-react';
 
 export const SettingsView: React.FC = () => {
-  const { settings, updateSettings } = useApp();
+  const { settings, updateSettings, currentPlan, updatePlanSettings, dishes, showNotification } = useApp();
+  const [activeTab, setActiveTab] = useState<'global' | 'project'>(currentPlan ? 'project' : 'global');
   const [newMealLabel, setNewMealLabel] = useState('');
+
+  const isProject = activeTab === 'project' && currentPlan;
+  const currentMealTypes = isProject ? (currentPlan.mealTypes || settings.mealTypes) : settings.mealTypes;
+  const currentCategories = isProject ? (currentPlan.mealCategories || settings.mealCategories) : settings.mealCategories;
 
   const addMealType = () => {
     if (!newMealLabel) return;
     const id = Math.random().toString(36).substr(2, 9);
-    updateSettings({
-      ...settings,
-      mealTypes: [...settings.mealTypes, { id, label: newMealLabel }]
-    });
+    const newTypes = [...currentMealTypes, { id, label: newMealLabel }];
+    
+    if (isProject) {
+      updatePlanSettings(newTypes, currentCategories);
+    } else {
+      updateSettings({ ...settings, mealTypes: newTypes });
+    }
     setNewMealLabel('');
   };
 
   const removeMealType = (id: string) => {
-    updateSettings({
-      ...settings,
-      mealTypes: settings.mealTypes.filter(m => m.id !== id)
-    });
+    const newTypes = currentMealTypes.filter(m => m.id !== id);
+    if (isProject) {
+      updatePlanSettings(newTypes, currentCategories);
+    } else {
+      updateSettings({ ...settings, mealTypes: newTypes });
+    }
   };
 
   const updateMealLabel = (id: string, label: string) => {
-    updateSettings({
-      ...settings,
-      mealTypes: settings.mealTypes.map(m => m.id === id ? { ...m, label } : m)
-    });
+    const newTypes = currentMealTypes.map(m => m.id === id ? { ...m, label } : m);
+    if (isProject) {
+      updatePlanSettings(newTypes, currentCategories);
+    } else {
+      updateSettings({ ...settings, mealTypes: newTypes });
+    }
+  };
+
+  const moveMealType = (index: number, direction: 'up' | 'down') => {
+    const newMealTypes = [...currentMealTypes];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= newMealTypes.length) return;
+    
+    const [moved] = newMealTypes.splice(index, 1);
+    newMealTypes.splice(targetIndex, 0, moved);
+    
+    if (isProject) {
+      updatePlanSettings(newMealTypes, currentCategories);
+    } else {
+      updateSettings({ ...settings, mealTypes: newMealTypes });
+    }
   };
 
   const [newCategoryLabel, setNewCategoryLabel] = useState('');
 
   const addCategory = () => {
     if (!newCategoryLabel) return;
-    updateSettings({
-      ...settings,
-      mealCategories: [...settings.mealCategories, newCategoryLabel]
-    });
+    const newCats = [...currentCategories, newCategoryLabel];
+    if (isProject) {
+      updatePlanSettings(currentMealTypes, newCats);
+    } else {
+      updateSettings({ ...settings, mealCategories: newCats });
+    }
     setNewCategoryLabel('');
   };
 
   const removeCategory = (index: number) => {
-    updateSettings({
-      ...settings,
-      mealCategories: settings.mealCategories.filter((_, i) => i !== index)
-    });
+    const categoryName = currentCategories[index];
+    
+    // Check if any dish uses this category
+    const isUsedByDish = dishes.some(d => d.categories?.includes(categoryName));
+    
+    if (isUsedByDish) {
+      showNotification(`Категория "${categoryName}" используется в блюдах. Сначала удалите её из всех блюд в конструкторе.`, 'error');
+      return;
+    }
+
+    const newCats = currentCategories.filter((_, i) => i !== index);
+    if (isProject) {
+      updatePlanSettings(currentMealTypes, newCats);
+    } else {
+      updateSettings({ ...settings, mealCategories: newCats });
+    }
   };
 
   const updateCategoryLabel = (index: number, label: string) => {
-    const newCategories = [...settings.mealCategories];
+    const newCategories = [...currentCategories];
     newCategories[index] = label;
-    updateSettings({
-      ...settings,
-      mealCategories: newCategories
-    });
+    if (isProject) {
+      updatePlanSettings(currentMealTypes, newCategories);
+    } else {
+      updateSettings({ ...settings, mealCategories: newCategories });
+    }
+  };
+
+  const moveCategory = (index: number, direction: 'up' | 'down') => {
+    const newCategories = [...currentCategories];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= newCategories.length) return;
+    
+    const [moved] = newCategories.splice(index, 1);
+    newCategories.splice(targetIndex, 0, moved);
+    
+    if (isProject) {
+      updatePlanSettings(currentMealTypes, newCategories);
+    } else {
+      updateSettings({ ...settings, mealCategories: newCategories });
+    }
   };
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold tracking-tight">Настройки</h2>
-        <p className="text-gray-500">Конфигурация системы расчета и визуализации</p>
+      <div className="mb-8 flex justify-between items-end">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Настройки</h2>
+          <p className="text-gray-500">Конфигурация системы расчета и визуализации</p>
+        </div>
+        
+        <div className="flex bg-gray-100 p-1 rounded-xl border border-black/5">
+          <button 
+            onClick={() => setActiveTab('global')}
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'global' ? 'bg-white shadow-sm text-emerald-600' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            Общие (Шаблоны)
+          </button>
+          <button 
+            onClick={() => setActiveTab('project')}
+            disabled={!currentPlan}
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${!currentPlan ? 'opacity-50 cursor-not-allowed' : ''} ${activeTab === 'project' ? 'bg-white shadow-sm text-emerald-600' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            Текущий рацион
+          </button>
+        </div>
       </div>
+
+      {isProject && (
+        <div className="mb-6 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-3">
+          <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg">
+            <Info size={20} />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-emerald-900">Настройки для рациона: {currentPlan.clientName}</p>
+            <p className="text-xs text-emerald-700">Изменения здесь коснутся только этого конкретного проекта.</p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
         {/* Column 1: Core Configuration */}
@@ -206,8 +293,24 @@ export const SettingsView: React.FC = () => {
             </p>
             
             <div className="space-y-2 mb-4 max-h-[400px] overflow-auto pr-2">
-              {settings.mealTypes.map((meal) => (
+              {currentMealTypes.map((meal, idx) => (
                 <div key={meal.id} className="flex items-center gap-2 group">
+                  <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button 
+                      onClick={() => moveMealType(idx, 'up')}
+                      disabled={idx === 0}
+                      className="p-0.5 text-gray-400 hover:text-emerald-600 disabled:opacity-20"
+                    >
+                      <ChevronUp size={14} />
+                    </button>
+                    <button 
+                      onClick={() => moveMealType(idx, 'down')}
+                      disabled={idx === currentMealTypes.length - 1}
+                      className="p-0.5 text-gray-400 hover:text-emerald-600 disabled:opacity-20"
+                    >
+                      <ChevronDown size={14} />
+                    </button>
+                  </div>
                   <input 
                     type="text" 
                     className="flex-1 px-3 py-2 border border-black/5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20"
@@ -256,8 +359,24 @@ export const SettingsView: React.FC = () => {
             </p>
             
             <div className="space-y-2 mb-4 max-h-[400px] overflow-auto pr-2">
-              {settings.mealCategories.map((cat, idx) => (
+              {currentCategories.map((cat, idx) => (
                 <div key={idx} className="flex items-center gap-2 group">
+                  <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button 
+                      onClick={() => moveCategory(idx, 'up')}
+                      disabled={idx === 0}
+                      className="p-0.5 text-gray-400 hover:text-blue-600 disabled:opacity-20"
+                    >
+                      <ChevronUp size={14} />
+                    </button>
+                    <button 
+                      onClick={() => moveCategory(idx, 'down')}
+                      disabled={idx === currentCategories.length - 1}
+                      className="p-0.5 text-gray-400 hover:text-blue-600 disabled:opacity-20"
+                    >
+                      <ChevronDown size={14} />
+                    </button>
+                  </div>
                   <input 
                     type="text" 
                     className="flex-1 px-3 py-2 border border-black/5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"

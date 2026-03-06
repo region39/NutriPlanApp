@@ -7,6 +7,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { toPng, toCanvas } from 'html-to-image';
+import { SearchableItemSelect } from './SearchableItemSelect';
 
 export const Planner: React.FC = () => {
   const { currentPlan, updatePlan, savePlan, products, dishes, settings, loadProducts, loadDishes, showNotification } = useApp();
@@ -44,10 +45,10 @@ export const Planner: React.FC = () => {
     const dayData = newPlan.data[dayId];
     if (!dayData || !dayData.meals) return;
 
-    const meal = dayData.meals.find((m: any) => m.type === mealType);
+    const meal = (dayData?.meals || []).find((m: any) => m.type === mealType);
     if (!meal || !meal.items) return;
     
-    const item = meal.items.find((i: any) => i.id === itemId);
+    const item = (meal?.items || []).find((i: any) => i.id === itemId);
     if (!item) return;
 
     item.weight = weight;
@@ -58,7 +59,7 @@ export const Planner: React.FC = () => {
     }
 
     if (item.productId) {
-      const product = products.find(p => p.id === item.productId);
+      const product = (products || []).find(p => p.id === item.productId);
       if (product) {
         if (settings.calculationMethod === 'fixed') {
           item.proteins = product.proteins;
@@ -74,7 +75,7 @@ export const Planner: React.FC = () => {
         }
       }
     } else if (item.dishId) {
-      const dish = dishes.find(d => d.id === item.dishId);
+      const dish = (dishes || []).find(d => d.id === item.dishId);
       if (dish) {
         if (settings.calculationMethod === 'fixed') {
           item.proteins = dish.proteins;
@@ -101,17 +102,17 @@ export const Planner: React.FC = () => {
     const dayData = newPlan.data[dayId];
     if (!dayData || !dayData.meals) return;
 
-    const meal = dayData.meals.find((m: any) => m.type === mealType);
+    const meal = (dayData?.meals || []).find((m: any) => m.type === mealType);
     if (!meal || !meal.items) return;
     
-    const item = meal.items.find((i: any) => i.id === itemId);
+    const item = (meal?.items || []).find((i: any) => i.id === itemId);
     if (!item) return;
 
     const [type, id] = value.split(':');
     const numericId = Number(id);
 
     if (type === 'product') {
-      const product = products.find(p => p.id === numericId);
+      const product = (products || []).find(p => p.id === numericId);
       if (product) {
         item.productId = numericId;
         item.dishId = undefined;
@@ -133,7 +134,7 @@ export const Planner: React.FC = () => {
         }
       }
     } else if (type === 'dish') {
-      const dish = dishes.find(d => d.id === numericId);
+      const dish = (dishes || []).find(d => d.id === numericId);
       if (dish) {
         item.dishId = numericId;
         item.productId = undefined;
@@ -165,7 +166,7 @@ export const Planner: React.FC = () => {
     const dayData = newPlan.data[dayId];
     if (!dayData || !dayData.meals) return;
 
-    const meal = dayData.meals.find((m: any) => m.type === mealType);
+    const meal = (dayData?.meals || []).find((m: any) => m.type === mealType);
     if (!meal || !meal.items) return;
     meal.items = meal.items.filter((i: any) => i.id !== itemId);
     updatePlan(newPlan);
@@ -178,7 +179,7 @@ export const Planner: React.FC = () => {
     if (!dayData) return;
     
     if (!dayData.meals) dayData.meals = [];
-    let meal = dayData.meals.find((m: any) => m.type === mealType);
+    let meal = (dayData?.meals || []).find((m: any) => m.type === mealType);
     if (!meal) {
       meal = { type: mealType, items: [] };
       dayData.meals.push(meal);
@@ -187,6 +188,7 @@ export const Planner: React.FC = () => {
     meal.items.push({
       id: Math.random().toString(36).substr(2, 9),
       name: name,
+      categoryName: name,
       weight: 0,
       proteins: 0,
       fats: 0,
@@ -232,14 +234,15 @@ export const Planner: React.FC = () => {
         newPlan.data[dayId].meals = [];
       }
       
-      const exists = newPlan.data[dayId].meals.find((m: any) => m.type === mealTypeId);
+      const exists = (newPlan.data[dayId].meals || []).find((m: any) => m.type === mealTypeId);
       if (!exists) {
-        const categories = mealTypeId === 'dinner' ? settings.mealCategories : [settings.mealCategories[0]];
+        const categories = mealTypeId === 'dinner' ? planMealCategories : [planMealCategories[0]];
         newPlan.data[dayId].meals.push({
           type: mealTypeId,
           items: categories.map(cat => ({
             id: Math.random().toString(36).substr(2, 9),
             name: cat,
+            categoryName: cat,
             weight: 0,
             proteins: 0,
             fats: 0,
@@ -274,9 +277,9 @@ export const Planner: React.FC = () => {
     const dayData = newPlan.data[dayId];
     if (!dayData || !dayData.meals) return;
 
-    const meal = dayData.meals.find((m: any) => m.type === mealType);
+    const meal = (dayData?.meals || []).find((m: any) => m.type === mealType);
     if (!meal || !meal.items) return;
-    const item = meal.items.find((i: any) => i.id === itemId);
+    const item = (meal?.items || []).find((i: any) => i.id === itemId);
     if (!item) return;
     (item as any)[field] = value;
     updatePlan(newPlan);
@@ -341,13 +344,13 @@ export const Planner: React.FC = () => {
       const headers = ['Прием', ...DAYS.map(d => d.label)];
       wsData.push(headers);
 
-      settings.mealTypes.forEach(mealType => {
+      activeMealTypes.forEach(mealType => {
         const row: any[] = [mealType.label];
         DAYS.forEach(day => {
-          const meal = currentPlan.data[day.id].meals.find(m => m.type === mealType.id);
+          const meal = (currentPlan.data[day.id].meals || []).find(m => m.type === mealType.id);
           const itemsText = meal?.items
-            .filter(i => i.weight > 0)
-            .map(i => `${i.name} (${i.weight}г)`)
+            .filter(i => i.weight > 0 || i.name.trim() !== '')
+            .map(i => `${i.name}${i.weight > 0 ? ` (${i.weight}г)` : ''}`)
             .join(', ') || '-';
           row.push(itemsText);
         });
@@ -380,14 +383,14 @@ export const Planner: React.FC = () => {
       });
 
       usedDishIds.forEach(id => {
-        const dish = dishes.find(d => d.id === id);
+        const dish = (dishes || []).find(d => d.id === id);
         if (dish) {
           recipesData.push([dish.name.toUpperCase()]);
           recipesData.push([`Выход: ${dish.portion} г/мл`]);
           recipesData.push(['Ингредиент', 'Вес (г)']);
           if (dish.ingredients) {
             dish.ingredients.forEach(ing => {
-              const product = products.find(p => p.id === ing.productId);
+              const product = (products || []).find(p => p.id === ing.productId);
               recipesData.push([product?.name || '?', ing.weight]);
             });
           }
@@ -417,13 +420,13 @@ export const Planner: React.FC = () => {
       md += `| Прием | ${DAYS.map(d => d.label).join(' | ')} |\n`;
       md += `| :--- | ${DAYS.map(() => ':---').join(' | ')} |\n`;
 
-      settings.mealTypes.forEach(mealType => {
+      activeMealTypes.forEach(mealType => {
         let row = `| **${mealType.label}** | `;
         const dayCells = DAYS.map(day => {
-          const meal = currentPlan.data[day.id].meals.find(m => m.type === mealType.id);
+          const meal = (currentPlan.data[day.id].meals || []).find(m => m.type === mealType.id);
           return meal?.items
-            .filter(i => i.weight > 0)
-            .map(i => `${i.name} (${i.weight}г)`)
+            .filter(i => i.weight > 0 || i.name.trim() !== '')
+            .map(i => `${i.name}${i.weight > 0 ? ` (${i.weight}г)` : ''}`)
             .join('<br>') || '-';
         });
         row += dayCells.join(' | ') + ' |\n';
@@ -445,14 +448,14 @@ export const Planner: React.FC = () => {
       if (usedDishIdsMarkdown.size > 0) {
         md += `## Рецепты\n\n`;
         usedDishIdsMarkdown.forEach(id => {
-          const dish = dishes.find(d => d.id === id);
+          const dish = (dishes || []).find(d => d.id === id);
           if (dish) {
             md += `### ${dish.name}\n`;
             md += `**Выход:** ${dish.portion} г/мл\n\n`;
             if (dish.ingredients && dish.ingredients.length > 0) {
               md += `**Ингредиенты:**\n\n`;
               dish.ingredients.forEach(ing => {
-                const product = products.find(p => p.id === ing.productId);
+                const product = (products || []).find(p => p.id === ing.productId);
                 md += `- ${product?.name || 'Неизвестный продукт'}: ${ing.weight}г\n`;
               });
             }
@@ -506,17 +509,44 @@ export const Planner: React.FC = () => {
   // Calculate which meal types are active in the current plan
   const activeMealTypes = useMemo(() => {
     if (!currentPlan || !currentPlan.data) return [];
-    const types = new Set<string>();
+    
+    // 1. Get types from currentPlan.mealTypes (per-plan settings)
+    const planMealTypes = [...(currentPlan.mealTypes || settings.mealTypes)];
+    
+    // 2. Find all types that actually have data in the plan
+    const typesWithData = new Set<string>();
     Object.values(currentPlan.data).forEach((day: any) => {
       if (day && day.meals) {
         day.meals.forEach((m: any) => {
-          if (m.type) types.add(m.type);
+          // Check if meal has items
+          if (m.type && m.items && m.items.length > 0) {
+            // Only consider it "having data" if at least one item has a name or weight
+            const hasData = m.items.some((i: any) => i.name.trim() !== '' || i.weight > 0 || i.kcal > 0);
+            if (hasData) {
+              typesWithData.add(m.type);
+            }
+          }
         });
       }
     });
-    // Return meal types from settings that are present in the plan
-    return settings.mealTypes.filter(mt => types.has(mt.id));
+    
+    // 3. Ensure all types with data are included even if removed from settings
+    typesWithData.forEach(typeId => {
+      if (!(planMealTypes || []).find(mt => mt.id === typeId)) {
+        const globalType = (settings.mealTypes || []).find(mt => mt.id === typeId);
+        planMealTypes.push({ 
+          id: typeId, 
+          label: (globalType?.label || typeId) + ' (Удалено)'
+        });
+      }
+    });
+    
+    return planMealTypes;
   }, [currentPlan, settings.mealTypes]);
+
+  const planMealCategories = useMemo(() => {
+    return currentPlan?.mealCategories || settings.mealCategories;
+  }, [currentPlan, settings.mealCategories]);
 
   // Calculate weekly average for charts
   const weeklyAverage = useMemo(() => {
@@ -866,7 +896,7 @@ export const Planner: React.FC = () => {
                     <div className="fixed inset-0 z-40" onClick={() => setShowAddMeal(false)}></div>
                     <div className="absolute top-full left-0 mt-1 bg-white border border-black/10 rounded-lg shadow-xl min-w-[150px] z-50">
                       <div className="p-2 text-[9px] font-bold text-gray-400 uppercase border-b border-black/5">Добавить блок</div>
-                      {settings.mealTypes.map(mt => (
+                      {(currentPlan.mealTypes || settings.mealTypes).map(mt => (
                         <button 
                           key={mt.id}
                           onClick={() => {
@@ -906,7 +936,7 @@ export const Planner: React.FC = () => {
                     <span className="font-bold text-[11px]">{mealType.label}</span>
                     <button 
                       onClick={() => removeMealBlock(mealType.id)}
-                      className={`absolute top-1 right-1 p-1 rounded-lg transition-all ${confirmMealDeleteId === mealType.id ? 'bg-red-600 text-white opacity-100' : 'text-red-300 hover:text-red-500 opacity-0 group-hover/header:opacity-100'}`}
+                      className={`absolute top-1 right-1 p-1 rounded-none transition-all ${confirmMealDeleteId === mealType.id ? 'bg-red-600 text-white opacity-100' : 'text-red-300 hover:text-red-500 opacity-0 group-hover/header:opacity-100'}`}
                       title={confirmMealDeleteId === mealType.id ? "Нажмите еще раз" : "Убрать блок"}
                     >
                       {confirmMealDeleteId === mealType.id ? <span className="text-[8px] font-bold">УДАЛИТЬ?</span> : <Trash2 size={12} />}
@@ -921,7 +951,7 @@ export const Planner: React.FC = () => {
                     <div key={day.id} className="p-1 border-r border-black/5 last:border-r-0 flex flex-col gap-1 relative group">
                       <div className="flex-1 space-y-1">
                         {meal?.items.map((item, idx) => (
-                          <div key={item.id} className="bg-white p-1.5 rounded-lg border border-black/5 shadow-sm text-[11px] group/item relative">
+                          <div key={item.id} className="bg-white p-1.5 rounded-none border border-black/5 shadow-sm text-[11px] group/item relative">
                             <button 
                               onClick={() => removeItem(day.id, mealType.id, item.id)}
                               className="absolute -top-1.5 -right-1.5 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover/item:opacity-100 transition-all shadow-md z-10 hover:bg-red-600"
@@ -932,31 +962,24 @@ export const Planner: React.FC = () => {
                             <div className="flex flex-col gap-1">
                               <div className="flex items-center justify-between gap-1">
                                 <div className="flex-1 min-w-0">
-                                  <select 
-                                    className="w-full bg-emerald-50/30 border border-emerald-100/50 rounded-md px-1.5 py-0.5 focus:ring-1 focus:ring-emerald-500/20 font-bold truncate text-[9px] text-emerald-900 appearance-none cursor-pointer hover:bg-emerald-50/50 transition-colors"
+                                  {item.categoryName && (
+                                    <div className="text-[7px] font-black text-gray-400 uppercase tracking-tighter mb-0.5 px-0.5">
+                                      {item.categoryName}
+                                    </div>
+                                  )}
+                                  <SearchableItemSelect
                                     value={item.productId ? `product:${item.productId}` : item.dishId ? `dish:${item.dishId}` : ''}
-                                    onChange={(e) => handleItemSelect(day.id, mealType.id, item.id, e.target.value)}
-                                  >
-                                    <option value="">{item.name}</option>
-                                    <optgroup label="Готовые блюда">
-                                      {dishes.map(d => (
-                                        <option key={d.id} value={`dish:${d.id}`}>{d.name}</option>
-                                      ))}
-                                      {products.filter(p => p.is_ready_meal === 1).map(p => (
-                                        <option key={p.id} value={`product:${p.id}`}>{p.name} (Готовое)</option>
-                                      ))}
-                                    </optgroup>
-                                    <optgroup label="Продукты">
-                                      {products.filter(p => p.is_ready_meal !== 1).map(p => (
-                                        <option key={p.id} value={`product:${p.id}`}>{p.name}</option>
-                                      ))}
-                                    </optgroup>
-                                  </select>
+                                    onSelect={(val) => handleItemSelect(day.id, mealType.id, item.id, val)}
+                                    placeholder={item.name}
+                                    products={products}
+                                    dishes={dishes}
+                                    categoryFilter={item.categoryName}
+                                  />
                                 </div>
                               </div>
 
                               <div className="flex items-center justify-between gap-1">
-                                <div className="flex items-center gap-1 bg-gray-50 px-1.5 py-0.5 rounded-md border border-black/5 flex-1">
+                                <div className="flex items-center gap-1 bg-gray-50 px-1.5 py-0.5 rounded-none border border-black/5 flex-1">
                                   <input 
                                     type="number" 
                                     className="w-full bg-transparent border-none p-0 text-center font-black text-gray-700 focus:ring-0 text-[10px]"
@@ -1029,7 +1052,7 @@ export const Planner: React.FC = () => {
                       </div>
                       <div className="absolute bottom-1 right-1 flex flex-col items-end gap-1 pointer-events-none">
                         <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto">
-                          {settings.mealCategories.map(cat => (
+                          {planMealCategories.map(cat => (
                             <button 
                               key={cat}
                               onClick={() => addOtherRow(day.id, mealType.id, cat)}

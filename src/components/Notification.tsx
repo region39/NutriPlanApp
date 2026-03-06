@@ -13,7 +13,7 @@ export const Notification: React.FC = () => {
           initial={{ opacity: 0, y: 50, x: '-50%' }}
           animate={{ opacity: 1, y: 0, x: '-50%' }}
           exit={{ opacity: 0, y: 20, x: '-50%' }}
-          className="fixed bottom-8 left-1/2 z-[9999] flex items-center gap-3 px-6 py-3 rounded-2xl shadow-2xl border border-white/10 backdrop-blur-md min-w-[300px]"
+          className="fixed bottom-8 left-1/2 z-[9999] flex items-center gap-3 px-6 py-3 rounded-none shadow-2xl border border-white/10 backdrop-blur-md min-w-[300px]"
           style={{
             backgroundColor: 
               notification.type === 'success' ? 'rgba(16, 185, 129, 0.95)' : 
