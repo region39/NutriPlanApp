@@ -55,7 +55,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const res = await fetch('/api/plans', { credentials: 'include' });
       if (res.status === 401) {
-        window.location.reload();
+        setPlans([]);
         return;
       }
       const data = await res.json();
@@ -226,7 +226,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const res = await fetch('/api/products', { credentials: 'include' });
       if (res.status === 401) {
-        window.location.reload();
+        setProducts([]);
         return;
       }
       const data = await res.json();
@@ -240,7 +240,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const res = await fetch(`/api/dishes?full=true&t=${Date.now()}`, { credentials: 'include' });
       if (res.status === 401) {
-        window.location.reload();
+        setDishes([]);
         return;
       }
       const data = await res.json();

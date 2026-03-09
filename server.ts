@@ -637,10 +637,12 @@ async function startServer() {
 
     const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: rememberMe ? '30d' : '1d' });
     
+    const isProduction = process.env.NODE_ENV === 'production' || req.headers['x-forwarded-proto'] === 'https';
+    
     const cookieOptions: express.CookieOptions = {
       httpOnly: true,
-      secure: true,      // Required for SameSite=None
-      sameSite: 'none',  // Required for cross-origin iframe
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
       path: '/'
     };
 
@@ -654,10 +656,11 @@ async function startServer() {
   });
 
   app.post("/api/logout", (req, res) => {
+    const isProduction = process.env.NODE_ENV === 'production' || req.headers['x-forwarded-proto'] === 'https';
     res.clearCookie('auth_token', { 
       path: '/',
-      secure: true,
-      sameSite: 'none'
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax'
     });
     res.json({ success: true });
   });
