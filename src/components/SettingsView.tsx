@@ -6,6 +6,7 @@ export const SettingsView: React.FC = () => {
   const { settings, updateSettings, currentPlan, updatePlanSettings, dishes, showNotification } = useApp();
   const [activeTab, setActiveTab] = useState<'global' | 'project'>(currentPlan ? 'project' : 'global');
   const [newMealLabel, setNewMealLabel] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const isProject = activeTab === 'project' && currentPlan;
   const currentMealTypes = isProject ? (currentPlan.mealTypes || settings.mealTypes) : settings.mealTypes;
@@ -25,12 +26,36 @@ export const SettingsView: React.FC = () => {
   };
 
   const removeMealType = (id: string) => {
+    if (isProject && currentPlan) {
+      let hasData = false;
+      Object.values(currentPlan.data).forEach((day: any) => {
+        if (day && day.meals) {
+          const meal = day.meals.find((m: any) => m.type === id);
+          if (meal && meal.items) {
+            const hasFilledItems = meal.items.some((item: any) => item.weight > 0 || item.kcal > 0 || item.proteins > 0 || item.fats > 0 || item.carbs > 0 || item.productId || item.dishId);
+            if (hasFilledItems) {
+              hasData = true;
+            }
+          }
+        }
+      });
+
+      if (hasData) {
+        if (confirmDeleteId !== id) {
+          setConfirmDeleteId(id);
+          setTimeout(() => setConfirmDeleteId(null), 3000);
+          return;
+        }
+      }
+    }
+
     const newTypes = currentMealTypes.filter(m => m.id !== id);
     if (isProject) {
       updatePlanSettings(newTypes, currentCategories);
     } else {
       updateSettings({ ...settings, mealTypes: newTypes });
     }
+    setConfirmDeleteId(null);
   };
 
   const updateMealLabel = (id: string, label: string) => {
@@ -313,15 +338,16 @@ export const SettingsView: React.FC = () => {
                   </div>
                   <input 
                     type="text" 
-                    className="flex-1 px-3 py-2 border border-black/5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+                    className="flex-1 min-w-0 px-3 py-2 border border-black/5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20"
                     value={meal.label}
                     onChange={(e) => updateMealLabel(meal.id, e.target.value)}
                   />
                   <button 
                     onClick={() => removeMealType(meal.id)}
-                    className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                    className={`p-2 rounded-lg transition-colors shrink-0 ${confirmDeleteId === meal.id ? 'bg-red-600 text-white opacity-100' : 'text-red-400 hover:bg-red-50 opacity-0 group-hover:opacity-100'}`}
+                    title={confirmDeleteId === meal.id ? "Нажмите еще раз для удаления (есть заполненные блюда)" : "Удалить"}
                   >
-                    <Trash2 size={16} />
+                    {confirmDeleteId === meal.id ? <span className="text-[10px] font-bold whitespace-nowrap">УДАЛИТЬ?</span> : <Trash2 size={16} />}
                   </button>
                 </div>
               ))}
@@ -379,13 +405,13 @@ export const SettingsView: React.FC = () => {
                   </div>
                   <input 
                     type="text" 
-                    className="flex-1 px-3 py-2 border border-black/5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    className="flex-1 min-w-0 px-3 py-2 border border-black/5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                     value={cat}
                     onChange={(e) => updateCategoryLabel(idx, e.target.value)}
                   />
                   <button 
                     onClick={() => removeCategory(idx)}
-                    className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                    className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors shrink-0 opacity-0 group-hover:opacity-100"
                   >
                     <Trash2 size={16} />
                   </button>

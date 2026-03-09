@@ -49,6 +49,8 @@ export const Dashboard: React.FC<{ onSelectPlan: () => void }> = ({ onSelectPlan
       targetCarbs: plan.targetCarbs || plan.target_carbs,
       startDate: plan.startDate || plan.start_date,
       endDate: plan.endDate || plan.end_date,
+      mealTypes: plan.mealTypes || (plan.meal_types ? JSON.parse(plan.meal_types) : undefined),
+      mealCategories: plan.mealCategories || (plan.meal_categories ? JSON.parse(plan.meal_categories) : undefined),
       data: typeof plan.data === 'string' ? JSON.parse(plan.data) : plan.data
     };
     await fetch('/api/plans', {

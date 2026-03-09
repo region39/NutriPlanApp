@@ -9,6 +9,7 @@ export interface Product {
   is_custom?: number;
   is_ready_meal?: number;
   image?: string | null;
+  hasImage?: boolean;
   categories?: string[];
 }
 
@@ -21,6 +22,7 @@ export interface Dish {
   kcal: number;
   portion: number;
   image?: string | null;
+  hasImage?: boolean;
   categories?: string[];
   ingredients?: { productId: number; weight: number }[];
 }

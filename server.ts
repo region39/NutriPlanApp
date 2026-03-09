@@ -15,6 +15,39 @@ if (!fs.existsSync(UPLOADS_DIR)) {
 
 const DB_PATH = "nutriplan.db";
 
+function saveEntityImage(type: string, id: string | number, base64Data: string | null) {
+  try {
+    const files = fs.readdirSync(UPLOADS_DIR);
+    const prefix = `${type}_${id}.`;
+    for (const file of files) {
+      if (file.startsWith(prefix)) {
+        fs.unlinkSync(path.join(UPLOADS_DIR, file));
+      }
+    }
+
+    if (base64Data) {
+      const matches = base64Data.match(/^data:image\/([a-zA-Z+]+);base64,(.+)$/);
+      if (matches && matches.length === 3) {
+        const ext = matches[1];
+        const buffer = Buffer.from(matches[2], "base64");
+        fs.writeFileSync(path.join(UPLOADS_DIR, `${prefix}${ext}`), buffer);
+      }
+    }
+  } catch (err) {
+    console.error(`Error saving image for ${type} ${id}:`, err);
+  }
+}
+
+function entityHasImage(type: string, id: string | number): boolean {
+  try {
+    const files = fs.readdirSync(UPLOADS_DIR);
+    const prefix = `${type}_${id}.`;
+    return files.some(f => f.startsWith(prefix));
+  } catch (err) {
+    return false;
+  }
+}
+
 function initDb() {
   let database: Database.Database;
   try {
@@ -508,28 +541,20 @@ async function startServer() {
   app.use(express.json({ limit: '10mb' }));
   app.use("/uploads", express.static(UPLOADS_DIR));
 
-  // Image Upload API
-  app.post("/api/upload", (req, res) => {
+  // Dynamic Image Serving API
+  app.get("/api/images/:type/:id", (req, res) => {
     try {
-      const { image } = req.body; // Expecting base64
-      if (!image) return res.status(400).json({ error: "No image provided" });
-
-      const matches = image.match(/^data:image\/([a-zA-Z+]+);base64,(.+)$/);
-      if (!matches || matches.length !== 3) {
-        return res.status(400).json({ error: "Invalid image format" });
+      const { type, id } = req.params;
+      const prefix = `${type}_${id}.`;
+      const files = fs.readdirSync(UPLOADS_DIR);
+      const file = files.find(f => f.startsWith(prefix));
+      if (file) {
+        res.sendFile(path.join(UPLOADS_DIR, file));
+      } else {
+        res.status(404).send("Not found");
       }
-
-      const extension = matches[1];
-      const data = matches[2];
-      const buffer = Buffer.from(data, "base64");
-      const filename = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${extension}`;
-      const filepath = path.join(UPLOADS_DIR, filename);
-
-      fs.writeFileSync(filepath, buffer);
-      res.json({ url: `/uploads/${filename}` });
     } catch (err) {
-      console.error("Upload error:", err);
-      res.status(500).json({ error: String(err) });
+      res.status(500).send("Server error");
     }
   });
 
@@ -538,32 +563,37 @@ async function startServer() {
     const products = db.prepare("SELECT * FROM products ORDER BY name ASC").all() as any[];
     const result = products.map(p => ({
       ...p,
-      categories: p.categories ? JSON.parse(p.categories) : []
+      categories: p.categories ? JSON.parse(p.categories) : [],
+      hasImage: entityHasImage('product', p.id)
     }));
     res.json(result);
   });
 
   app.post("/api/products", (req, res) => {
     try {
-      const { id, name, proteins, fats, carbs, kcal, portion, is_ready_meal, image, categories = [] } = req.body;
+      const { id, name, proteins, fats, carbs, kcal, portion, is_ready_meal, imageBase64, categories = [] } = req.body;
       console.log('POST /api/products', { id, name });
       
       if (id && id !== null && id !== '') {
         const existing = db.prepare("SELECT id FROM products WHERE id = ?").get(id);
         if (existing) {
-          db.prepare("UPDATE products SET name = ?, proteins = ?, fats = ?, carbs = ?, kcal = ?, portion = ?, is_ready_meal = ?, image = ?, categories = ? WHERE id = ?")
-            .run(name || '', proteins || 0, fats || 0, carbs || 0, kcal || 0, portion || 100, is_ready_meal || 0, image || null, JSON.stringify(categories), id);
+          db.prepare("UPDATE products SET name = ?, proteins = ?, fats = ?, carbs = ?, kcal = ?, portion = ?, is_ready_meal = ?, categories = ? WHERE id = ?")
+            .run(name || '', proteins || 0, fats || 0, carbs || 0, kcal || 0, portion || 100, is_ready_meal || 0, JSON.stringify(categories), id);
+          if (imageBase64 !== undefined) saveEntityImage('product', id, imageBase64);
           return res.json({ id, updated: true });
         } else {
-          db.prepare("INSERT INTO products (id, name, proteins, fats, carbs, kcal, portion, is_custom, is_ready_meal, image, categories) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)")
-            .run(id, name || '', proteins || 0, fats || 0, carbs || 0, kcal || 0, portion || 100, is_ready_meal || 0, image || null, JSON.stringify(categories));
+          db.prepare("INSERT INTO products (id, name, proteins, fats, carbs, kcal, portion, is_custom, is_ready_meal, categories) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)")
+            .run(id, name || '', proteins || 0, fats || 0, carbs || 0, kcal || 0, portion || 100, is_ready_meal || 0, JSON.stringify(categories));
+          if (imageBase64 !== undefined) saveEntityImage('product', id, imageBase64);
           return res.json({ id, created: true });
         }
       }
 
-      const result = db.prepare("INSERT INTO products (name, proteins, fats, carbs, kcal, portion, is_custom, is_ready_meal, image, categories) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)")
-        .run(name || '', proteins || 0, fats || 0, carbs || 0, kcal || 0, portion || 100, is_ready_meal || 0, image || null, JSON.stringify(categories));
-      res.json({ id: result.lastInsertRowid });
+      const result = db.prepare("INSERT INTO products (name, proteins, fats, carbs, kcal, portion, is_custom, is_ready_meal, categories) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)")
+        .run(name || '', proteins || 0, fats || 0, carbs || 0, kcal || 0, portion || 100, is_ready_meal || 0, JSON.stringify(categories));
+      const newId = result.lastInsertRowid;
+      if (imageBase64 !== undefined) saveEntityImage('product', newId, imageBase64);
+      res.json({ id: newId });
     } catch (err) {
       console.error('Error in POST /api/products:', err);
       res.status(500).json({ error: String(err) });
@@ -588,6 +618,7 @@ async function startServer() {
         console.log('Deleted product using string ID:', id, 'Changes:', result.changes);
       }
       
+      saveEntityImage('product', id, null);
       res.json({ success: true, changes: result.changes });
     } catch (err) {
       console.error('Error in DELETE /api/products:', err);
@@ -597,10 +628,11 @@ async function startServer() {
 
   app.put("/api/products/:id", (req, res) => {
     try {
-      const { name, proteins, fats, carbs, kcal, portion, is_ready_meal, image, categories = [] } = req.body;
+      const { name, proteins, fats, carbs, kcal, portion, is_ready_meal, imageBase64, categories = [] } = req.body;
       console.log('PUT /api/products', req.params.id);
-      db.prepare("UPDATE products SET name = ?, proteins = ?, fats = ?, carbs = ?, kcal = ?, portion = ?, is_ready_meal = ?, image = ?, categories = ? WHERE id = ?")
-        .run(name || '', proteins || 0, fats || 0, carbs || 0, kcal || 0, portion || 100, is_ready_meal || 0, image || null, JSON.stringify(categories), req.params.id);
+      db.prepare("UPDATE products SET name = ?, proteins = ?, fats = ?, carbs = ?, kcal = ?, portion = ?, is_ready_meal = ?, categories = ? WHERE id = ?")
+        .run(name || '', proteins || 0, fats || 0, carbs || 0, kcal || 0, portion || 100, is_ready_meal || 0, JSON.stringify(categories), req.params.id);
+      if (imageBase64 !== undefined) saveEntityImage('product', req.params.id, imageBase64);
       res.json({ success: true });
     } catch (err) {
       console.error('Error in PUT /api/products:', err);
@@ -613,7 +645,11 @@ async function startServer() {
     const dishes = db.prepare("SELECT * FROM dishes ORDER BY name ASC").all() as any[];
     
     const result = dishes.map((dish: any) => {
-      const parsedDish = { ...dish, categories: dish.categories ? JSON.parse(dish.categories) : [] };
+      const parsedDish = { 
+        ...dish, 
+        categories: dish.categories ? JSON.parse(dish.categories) : [],
+        hasImage: entityHasImage('dish', dish.id)
+      };
       if (full) {
         const ingredients = db.prepare("SELECT product_id as productId, weight FROM dish_ingredients WHERE dish_id = ?").all(dish.id);
         return { ...parsedDish, ingredients };
@@ -627,7 +663,12 @@ async function startServer() {
     const dish = db.prepare("SELECT * FROM dishes WHERE id = ?").get(req.params.id) as any;
     if (dish) {
       const ingredients = db.prepare("SELECT product_id as productId, weight FROM dish_ingredients WHERE dish_id = ?").all(req.params.id);
-      res.json({ ...dish, categories: dish.categories ? JSON.parse(dish.categories) : [], ingredients });
+      res.json({ 
+        ...dish, 
+        categories: dish.categories ? JSON.parse(dish.categories) : [], 
+        ingredients,
+        hasImage: entityHasImage('dish', dish.id)
+      });
     } else {
       res.status(404).send("Dish not found");
     }
@@ -635,25 +676,27 @@ async function startServer() {
 
   app.post("/api/dishes", (req, res) => {
     try {
-      const { id, name, proteins, fats, carbs, kcal, portion, ingredients = [], image, categories = [] } = req.body;
+      const { id, name, proteins, fats, carbs, kcal, portion, ingredients = [], imageBase64, categories = [] } = req.body;
       console.log('POST /api/dishes', { id, name });
       let dishId = id;
 
       if (id && id !== null && id !== '') {
         const existing = db.prepare("SELECT id FROM dishes WHERE id = ?").get(id);
         if (existing) {
-          db.prepare("UPDATE dishes SET name = ?, proteins = ?, fats = ?, carbs = ?, kcal = ?, portion = ?, image = ?, categories = ? WHERE id = ?")
-            .run(name || '', proteins || 0, fats || 0, carbs || 0, kcal || 0, portion || 100, image || null, JSON.stringify(categories), id);
+          db.prepare("UPDATE dishes SET name = ?, proteins = ?, fats = ?, carbs = ?, kcal = ?, portion = ?, categories = ? WHERE id = ?")
+            .run(name || '', proteins || 0, fats || 0, carbs || 0, kcal || 0, portion || 100, JSON.stringify(categories), id);
           db.prepare("DELETE FROM dish_ingredients WHERE dish_id = ?").run(id);
         } else {
-          db.prepare("INSERT INTO dishes (id, name, proteins, fats, carbs, kcal, portion, image, categories) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
-            .run(id, name || '', proteins || 0, fats || 0, carbs || 0, kcal || 0, portion || 100, image || null, JSON.stringify(categories));
+          db.prepare("INSERT INTO dishes (id, name, proteins, fats, carbs, kcal, portion, categories) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+            .run(id, name || '', proteins || 0, fats || 0, carbs || 0, kcal || 0, portion || 100, JSON.stringify(categories));
         }
       } else {
-        const result = db.prepare("INSERT INTO dishes (name, proteins, fats, carbs, kcal, portion, image, categories) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-          .run(name || '', proteins || 0, fats || 0, carbs || 0, kcal || 0, portion || 100, image || null, JSON.stringify(categories));
+        const result = db.prepare("INSERT INTO dishes (name, proteins, fats, carbs, kcal, portion, categories) VALUES (?, ?, ?, ?, ?, ?, ?)")
+          .run(name || '', proteins || 0, fats || 0, carbs || 0, kcal || 0, portion || 100, JSON.stringify(categories));
         dishId = result.lastInsertRowid;
       }
+
+      if (imageBase64 !== undefined) saveEntityImage('dish', dishId, imageBase64);
 
       const insertIngredient = db.prepare("INSERT INTO dish_ingredients (dish_id, product_id, weight) VALUES (?, ?, ?)");
       (ingredients || []).forEach((ing: any) => {
@@ -692,6 +735,7 @@ async function startServer() {
         console.log('Deleted using string ID:', id, 'Changes:', dishResult.changes);
       }
       
+      saveEntityImage('dish', id, null);
       res.json({ success: true, changes: dishResult.changes });
     } catch (err) {
       console.error('Error in DELETE /api/dishes:', err);
@@ -701,10 +745,12 @@ async function startServer() {
 
   app.put("/api/dishes/:id", (req, res) => {
     try {
-      const { name, proteins, fats, carbs, kcal, portion, ingredients = [], image, categories = [] } = req.body;
+      const { name, proteins, fats, carbs, kcal, portion, ingredients = [], imageBase64, categories = [] } = req.body;
       console.log('PUT /api/dishes', req.params.id);
-      db.prepare("UPDATE dishes SET name = ?, proteins = ?, fats = ?, carbs = ?, kcal = ?, portion = ?, image = ?, categories = ? WHERE id = ?")
-        .run(name || '', proteins || 0, fats || 0, carbs || 0, kcal || 0, portion || 100, image || null, JSON.stringify(categories), req.params.id);
+      db.prepare("UPDATE dishes SET name = ?, proteins = ?, fats = ?, carbs = ?, kcal = ?, portion = ?, categories = ? WHERE id = ?")
+        .run(name || '', proteins || 0, fats || 0, carbs || 0, kcal || 0, portion || 100, JSON.stringify(categories), req.params.id);
+      
+      if (imageBase64 !== undefined) saveEntityImage('dish', req.params.id, imageBase64);
       
       // Refresh ingredients
       db.prepare("DELETE FROM dish_ingredients WHERE dish_id = ?").run(req.params.id);
@@ -751,27 +797,46 @@ async function startServer() {
   });
 
   app.post("/api/plans", (req, res) => {
-    const { id, clientName, targetKcal, targetProteins, targetFats, targetCarbs, startDate, endDate, mealTypes, mealCategories, data } = req.body;
-    db.prepare("INSERT OR REPLACE INTO plans (id, client_name, target_kcal, target_proteins, target_fats, target_carbs, start_date, end_date, meal_types, meal_categories, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-      .run(
-        id, 
-        clientName, 
-        targetKcal, 
-        targetProteins || 150, 
-        targetFats || 70, 
-        targetCarbs || 250, 
-        startDate || null, 
-        endDate || null, 
-        mealTypes ? JSON.stringify(mealTypes) : null,
-        mealCategories ? JSON.stringify(mealCategories) : null,
-        JSON.stringify(data)
-      );
-    res.json({ success: true });
+    try {
+      const { id, clientName, targetKcal, targetProteins, targetFats, targetCarbs, startDate, endDate, mealTypes, mealCategories, data } = req.body;
+      console.log('POST /api/plans', { id, clientName });
+      db.prepare("INSERT OR REPLACE INTO plans (id, client_name, target_kcal, target_proteins, target_fats, target_carbs, start_date, end_date, meal_types, meal_categories, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        .run(
+          id, 
+          clientName, 
+          targetKcal, 
+          targetProteins || 150, 
+          targetFats || 70, 
+          targetCarbs || 250, 
+          startDate || null, 
+          endDate || null, 
+          mealTypes ? JSON.stringify(mealTypes) : null,
+          mealCategories ? JSON.stringify(mealCategories) : null,
+          JSON.stringify(data)
+        );
+      res.json({ success: true });
+    } catch (err) {
+      console.error('Error in POST /api/plans:', err);
+      res.status(500).json({ error: String(err) });
+    }
   });
 
   app.delete("/api/plans/:id", (req, res) => {
-    db.prepare("DELETE FROM plans WHERE id = ?").run(req.params.id);
-    res.json({ success: true });
+    try {
+      const id = req.params.id;
+      const numericId = parseInt(id, 10);
+      let result;
+      if (!isNaN(numericId)) {
+        result = db.prepare("DELETE FROM plans WHERE id = ?").run(numericId);
+      }
+      if (!result || result.changes === 0) {
+        result = db.prepare("DELETE FROM plans WHERE id = ?").run(id);
+      }
+      res.json({ success: true, changes: result?.changes });
+    } catch (err) {
+      console.error('Error in DELETE /api/plans:', err);
+      res.status(500).json({ error: String(err) });
+    }
   });
 
   app.get("/api/settings", (req, res) => {

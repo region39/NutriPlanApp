@@ -22,10 +22,12 @@ interface AppContextType {
   duplicatePlan: (id: string) => Promise<void>;
   createNewPlan: (clientName: string, targetKcal: number, startDate?: string, endDate?: string) => void;
   updatePlan: (plan: DietPlan) => void;
-  updatePlanSettings: (mealTypes: { id: string; label: string }[], mealCategories: string[]) => void;
+  updatePlanSettings: (mealTypes: { id: string; label: string }[], mealCategories: string[]) => Promise<void>;
   updateSettings: (settings: Settings) => Promise<void>;
   loadProducts: () => Promise<void>;
   loadDishes: () => Promise<void>;
+  isDishConstructorDirty: boolean;
+  setIsDishConstructorDirty: (dirty: boolean) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -36,6 +38,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [products, setProducts] = useState<Product[]>([]);
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [notification, setNotification] = useState<Notification | null>(null);
+  const [isDishConstructorDirty, setIsDishConstructorDirty] = useState(false);
   const [settings, setSettings] = useState<Settings>({
     deviation: 5,
     calculationMethod: 'proportional',
@@ -153,13 +156,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCurrentPlan({ ...plan });
   };
 
-  const updatePlanSettings = (mealTypes: { id: string; label: string }[], mealCategories: string[]) => {
+  const updatePlanSettings = async (mealTypes: { id: string; label: string }[], mealCategories: string[]) => {
     if (!currentPlan) return;
-    setCurrentPlan({
+    
+    // Clean up data for removed meal types
+    const validMealTypeIds = new Set(mealTypes.map(m => m.id));
+    const newData = { ...currentPlan.data };
+    
+    Object.keys(newData).forEach(dayId => {
+      if (newData[dayId] && newData[dayId].meals) {
+        newData[dayId].meals = newData[dayId].meals.filter((meal: any) => validMealTypeIds.has(meal.type));
+      }
+    });
+
+    const updatedPlan = {
       ...currentPlan,
       mealTypes,
-      mealCategories
-    });
+      mealCategories,
+      data: newData
+    };
+    setCurrentPlan(updatedPlan);
+    await savePlan(updatedPlan);
   };
 
   const loadProducts = async () => {
@@ -217,7 +234,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     <AppContext.Provider value={{
       plans, currentPlan, products, dishes, settings, notification, showNotification,
       loadPlans, loadPlan, savePlan, deletePlan, duplicatePlan,
-      createNewPlan, updatePlan, updateSettings, loadProducts, loadDishes
+      createNewPlan, updatePlan, updatePlanSettings, updateSettings, loadProducts, loadDishes,
+      isDishConstructorDirty, setIsDishConstructorDirty
     }}>
       {children}
     </AppContext.Provider>

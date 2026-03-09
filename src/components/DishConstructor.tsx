@@ -4,14 +4,17 @@ import { Plus, Trash2, Save, Utensils, Edit3, X, Download, Upload, Search, Chevr
 import { SearchableItemSelect } from './SearchableItemSelect';
 
 export const DishConstructor: React.FC = () => {
-  const { products, dishes, loadDishes, loadProducts, showNotification, settings } = useApp();
+  const { products, dishes, loadDishes, loadProducts, showNotification, settings, setIsDishConstructorDirty } = useApp();
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingType, setEditingType] = useState<'dish' | 'ready_meal' | null>(null);
   const [originalType, setOriginalType] = useState<'dish' | 'ready_meal' | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | string | null>(null);
+  const [quickAddProduct, setQuickAddProduct] = useState<{ index: number, name: string } | null>(null);
+  const [quickAddFormData, setQuickAddFormData] = useState({ p: 0, f: 0, c: 0, kcal: 0, portion: 100 });
   const [search, setSearch] = useState('');
   const [name, setName] = useState('');
-  const [image, setImage] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [imageBase64, setImageBase64] = useState<string | null | undefined>(undefined);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [ingredients, setIngredients] = useState<{ productId: number | null; weight: number }[]>([]);
   const [portion, setPortion] = useState<number>(0);
@@ -71,17 +74,31 @@ export const DishConstructor: React.FC = () => {
   };
 
   const handleQuickAddProduct = async (index: number, name: string) => {
+    setQuickAddProduct({ index, name });
+    setQuickAddFormData({ p: 0, f: 0, c: 0, kcal: 0, portion: 100 });
+  };
+
+  const submitQuickAddProduct = async () => {
+    if (!quickAddProduct) return;
     try {
       const res = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, proteins: 0, fats: 0, carbs: 0, kcal: 0, portion: 100 })
+        body: JSON.stringify({ 
+          name: quickAddProduct.name, 
+          proteins: quickAddFormData.p, 
+          fats: quickAddFormData.f, 
+          carbs: quickAddFormData.c, 
+          kcal: quickAddFormData.kcal, 
+          portion: quickAddFormData.portion 
+        })
       });
       if (res.ok) {
         const data = await res.json();
         await loadProducts();
-        updateIngredient(index, data.id, 100);
-        showNotification(`Продукт "${name}" добавлен в базу`, 'success');
+        updateIngredient(quickAddProduct.index, data.id, 100);
+        showNotification(`Продукт "${quickAddProduct.name}" добавлен в базу`, 'success');
+        setQuickAddProduct(null);
       }
     } catch (err) {
       showNotification('Ошибка при создании продукта', 'error');
@@ -120,7 +137,7 @@ export const DishConstructor: React.FC = () => {
         kcal: Number(totals.kcal.toFixed(1)),
         portion: portion || 100,
         is_ready_meal: 1,
-        image,
+        imageBase64,
         categories: selectedCategories
       };
       
@@ -142,7 +159,7 @@ export const DishConstructor: React.FC = () => {
         kcal: Number(totals.kcal.toFixed(1)),
         portion: portion || totals.weight,
         ingredients: ingredients.filter(i => i.productId !== null),
-        image,
+        imageBase64,
         categories: selectedCategories
       };
 
@@ -252,17 +269,27 @@ export const DishConstructor: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    if (name || ingredients.length > 0 || selectedCategories.length > 0 || (editingType === 'ready_meal' && (fixedMacros.p > 0 || fixedMacros.f > 0 || fixedMacros.c > 0 || fixedMacros.kcal > 0))) {
+      setIsDishConstructorDirty(true);
+    } else {
+      setIsDishConstructorDirty(false);
+    }
+  }, [name, ingredients, selectedCategories, fixedMacros, editingType]);
+
   const resetForm = () => {
     setEditingId(null);
     setEditingType(null);
     setOriginalType(null);
     setName('');
-    setImage(null);
+    setPreviewImage(null);
+    setImageBase64(undefined);
     setSelectedCategories([]);
     setIngredients([]);
     setPortion(0);
     setIsManualPortion(false);
     setFixedMacros({ p: 0, f: 0, c: 0, kcal: 0 });
+    setIsDishConstructorDirty(false);
   };
 
   const startEditing = async (dish: any) => {
@@ -270,7 +297,8 @@ export const DishConstructor: React.FC = () => {
     setEditingType(dish.type || 'dish');
     setOriginalType(dish.type || 'dish');
     setName(dish.name);
-    setImage(dish.image || null);
+    setPreviewImage(`/api/images/${dish.type === 'ready_meal' ? 'product' : 'dish'}/${dish.id}?t=${Date.now()}`);
+    setImageBase64(undefined);
     setSelectedCategories(dish.categories || []);
     
     if (dish.type === 'ready_meal') {
@@ -303,16 +331,10 @@ export const DishConstructor: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onloadend = async () => {
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: reader.result })
-      });
-      const data = await res.json();
-      if (data.url) {
-        setImage(data.url);
-      }
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      setPreviewImage(result);
+      setImageBase64(result);
     };
     reader.readAsDataURL(file);
   };
@@ -409,13 +431,18 @@ export const DishConstructor: React.FC = () => {
                   {!collapsedCategories[cat] && groupedDishes[cat].map(dish => (
                     <div key={`${dish.type}-${dish.id}`} className="p-3 hover:bg-gray-50 transition-colors group flex items-center justify-between cursor-pointer" onClick={() => startEditing(dish)}>
                       <div className="flex items-center gap-3 min-w-0">
-                        {dish.image ? (
-                          <img src={dish.image} className="w-10 h-10 rounded-lg object-cover border border-black/5 shrink-0" alt={dish.name} />
-                        ) : (
-                          <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 shrink-0">
+                        <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 shrink-0 overflow-hidden border border-black/5">
+                          {dish.hasImage ? (
+                            <img 
+                              src={`/api/images/${dish.type === 'ready_meal' ? 'product' : 'dish'}/${dish.id}`} 
+                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                              className="w-full h-full object-cover" 
+                              alt={dish.name} 
+                            />
+                          ) : (
                             <Utensils size={14} />
-                          </div>
-                        )}
+                          )}
+                        </div>
                         <div className="min-w-0">
                           <p className="font-bold text-xs truncate text-gray-700 group-hover:text-emerald-600 transition-colors">
                             {dish.name}
@@ -450,13 +477,18 @@ export const DishConstructor: React.FC = () => {
                   {!collapsedCategories['uncategorized'] && uncategorizedDishes.map(dish => (
                     <div key={`${dish.type}-${dish.id}`} className="p-3 hover:bg-gray-50 transition-colors group flex items-center justify-between cursor-pointer" onClick={() => startEditing(dish)}>
                       <div className="flex items-center gap-3 min-w-0">
-                        {dish.image ? (
-                          <img src={dish.image} className="w-10 h-10 rounded-lg object-cover border border-black/5 shrink-0" alt={dish.name} />
-                        ) : (
-                          <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 shrink-0">
+                        <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 shrink-0 overflow-hidden border border-black/5">
+                          {dish.hasImage ? (
+                            <img 
+                              src={`/api/images/${dish.type === 'ready_meal' ? 'product' : 'dish'}/${dish.id}`} 
+                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                              className="w-full h-full object-cover" 
+                              alt={dish.name} 
+                            />
+                          ) : (
                             <Utensils size={14} />
-                          </div>
-                        )}
+                          )}
+                        </div>
                         <div className="min-w-0">
                           <p className="font-bold text-xs truncate text-gray-700 group-hover:text-emerald-600 transition-colors">
                             {dish.name}
@@ -601,8 +633,16 @@ export const DishConstructor: React.FC = () => {
                 <div className="flex-1">
                   <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Фото блюда</label>
                   <div className="relative group/img aspect-square w-full max-w-[120px]">
-                    {image ? (
-                      <img src={image} className="w-full h-full rounded-none object-cover border border-black/10 shadow-sm" alt="Dish" />
+                    {previewImage ? (
+                      <>
+                        <img src={previewImage} onError={(e) => { e.currentTarget.style.display = 'none'; }} className="w-full h-full rounded-none object-cover border border-black/10 shadow-sm" alt="Dish" />
+                        <button 
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPreviewImage(null); setImageBase64(null); }}
+                          className="absolute top-1 right-1 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover/img:opacity-100 transition-opacity z-10"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </>
                     ) : (
                       <div className="w-full h-full rounded-none bg-gray-50 border-2 border-dashed border-black/10 flex flex-col items-center justify-center text-gray-300 group-hover/img:border-emerald-500/30 transition-colors">
                         <Plus size={24} />
@@ -708,6 +748,89 @@ export const DishConstructor: React.FC = () => {
           </div>
         </div>
       </div>
+      {/* Quick Add Product Modal */}
+      {quickAddProduct && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-none shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="p-6 border-b border-black/5">
+              <h3 className="text-xl font-bold">Новый продукт</h3>
+              <p className="text-xs text-gray-400">Укажите данные на 100г продукта</p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Название</label>
+                <input 
+                  type="text" 
+                  className="w-full px-4 py-2 border border-black/10 rounded-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  value={quickAddProduct.name}
+                  onChange={(e) => setQuickAddProduct({ ...quickAddProduct, name: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Белки</label>
+                  <input 
+                    type="number" 
+                    className="w-full px-4 py-2 border border-black/10 rounded-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    value={quickAddFormData.p}
+                    onChange={(e) => setQuickAddFormData({ ...quickAddFormData, p: Number(e.target.value) })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Жиры</label>
+                  <input 
+                    type="number" 
+                    className="w-full px-4 py-2 border border-black/10 rounded-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    value={quickAddFormData.f}
+                    onChange={(e) => setQuickAddFormData({ ...quickAddFormData, f: Number(e.target.value) })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Углеводы</label>
+                  <input 
+                    type="number" 
+                    className="w-full px-4 py-2 border border-black/10 rounded-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    value={quickAddFormData.c}
+                    onChange={(e) => setQuickAddFormData({ ...quickAddFormData, c: Number(e.target.value) })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Ккал</label>
+                  <input 
+                    type="number" 
+                    className="w-full px-4 py-2 border border-black/10 rounded-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    value={quickAddFormData.kcal}
+                    onChange={(e) => setQuickAddFormData({ ...quickAddFormData, kcal: Number(e.target.value) })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Порция (г)</label>
+                  <input 
+                    type="number" 
+                    className="w-full px-4 py-2 border border-black/10 rounded-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    value={quickAddFormData.portion}
+                    onChange={(e) => setQuickAddFormData({ ...quickAddFormData, portion: Number(e.target.value) })}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="p-6 border-t border-black/5 bg-gray-50 flex justify-end gap-3">
+              <button 
+                onClick={() => setQuickAddProduct(null)}
+                className="px-6 py-2 text-gray-500 font-medium hover:bg-gray-200 rounded-none transition-colors"
+              >
+                Отмена
+              </button>
+              <button 
+                onClick={submitQuickAddProduct}
+                className="px-6 py-2 bg-emerald-600 text-white font-medium hover:bg-emerald-700 rounded-none transition-colors shadow-lg shadow-emerald-600/20"
+              >
+                Сохранить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

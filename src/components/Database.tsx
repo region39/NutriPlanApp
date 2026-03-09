@@ -17,23 +17,19 @@ export const Database: React.FC = () => {
     kcal: 0,
     portion: 100,
     is_ready_meal: 0,
-    image: null as string | null
+    categories: [] as string[]
   });
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [imageBase64, setImageBase64] = useState<string | null | undefined>(undefined);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onloadend = async () => {
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: reader.result })
-      });
-      const data = await res.json();
-      if (data.url) {
-        setFormData(prev => ({ ...prev, image: data.url }));
-      }
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      setPreviewImage(result);
+      setImageBase64(result);
     };
     reader.readAsDataURL(file);
   };
@@ -54,11 +50,15 @@ export const Database: React.FC = () => {
         kcal: product.kcal,
         portion: product.portion,
         is_ready_meal: product.is_ready_meal || 0,
-        image: product.image || null
+        categories: product.categories || []
       });
+      setPreviewImage(`/api/images/product/${product.id}?t=${Date.now()}`);
+      setImageBase64(undefined);
     } else {
       setEditingProduct(null);
-      setFormData({ name: '', proteins: 0, fats: 0, carbs: 0, kcal: 0, portion: 100, is_ready_meal: 0, image: null });
+      setFormData({ name: '', proteins: 0, fats: 0, carbs: 0, kcal: 0, portion: 100, is_ready_meal: 0, categories: [] });
+      setPreviewImage(null);
+      setImageBase64(undefined);
     }
     setShowModal(true);
   };
@@ -69,10 +69,12 @@ export const Database: React.FC = () => {
     const url = editingProduct ? `/api/products/${editingProduct.id}` : '/api/products';
     const method = editingProduct ? 'PUT' : 'POST';
 
+    const payload = { ...formData, imageBase64 };
+
     await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData)
+      body: JSON.stringify(payload)
     });
     
     await loadProducts();
@@ -202,50 +204,65 @@ export const Database: React.FC = () => {
 
         <div className="overflow-x-auto">
           <table className="w-full text-left">
-            <thead className="bg-gray-50 text-[10px] uppercase tracking-wider font-bold text-gray-400">
+            <thead className="bg-gray-50 text-[9px] uppercase tracking-wider font-bold text-gray-400">
               <tr>
-                <th className="p-4">Название</th>
-                <th className="p-4 text-center">Белки</th>
-                <th className="p-4 text-center">Жиры</th>
-                <th className="p-4 text-center">Углеводы</th>
-                <th className="p-4 text-center">Ккал</th>
-                <th className="p-4 text-center">Порция (г)</th>
-                <th className="p-4 text-center">Готовое</th>
-                <th className="p-4"></th>
+                <th className="px-3 py-2 w-10"></th>
+                <th className="px-3 py-2">Название</th>
+                <th className="px-3 py-2 text-center">Белки</th>
+                <th className="px-3 py-2 text-center">Жиры</th>
+                <th className="px-3 py-2 text-center">Углеводы</th>
+                <th className="px-3 py-2 text-center">Ккал</th>
+                <th className="px-3 py-2 text-center">Порция (г)</th>
+                <th className="px-3 py-2 text-center">Готовое</th>
+                <th className="px-3 py-2"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-black/5">
+            <tbody className="divide-y divide-black/5 text-xs">
               {filteredProducts.map((product) => (
                 <tr key={product.id} className={`hover:bg-gray-50 transition-colors group ${product.is_ready_meal === 1 ? 'bg-emerald-50/30' : ''}`}>
-                  <td className="p-4 font-medium">{product.name}</td>
-                  <td className="p-4 text-center text-gray-500">{product.proteins}</td>
-                  <td className="p-4 text-center text-gray-500">{product.fats}</td>
-                  <td className="p-4 text-center text-gray-500">{product.carbs}</td>
-                  <td className="p-4 text-center font-bold text-emerald-600">{product.kcal}</td>
-                  <td className="p-4 text-center text-gray-500">{product.portion}</td>
-                  <td className="p-4 text-center">
+                  <td className="px-3 py-1.5">
+                    <div className="w-8 h-8 rounded bg-gray-100 border border-black/5 flex items-center justify-center shrink-0 overflow-hidden">
+                      {product.hasImage ? (
+                        <img 
+                          src={`/api/images/product/${product.id}`} 
+                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                          className="w-full h-full object-cover" 
+                          alt={product.name} 
+                        />
+                      ) : (
+                        <span className="text-gray-300 text-[8px] font-bold uppercase">Нет</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-3 py-1.5 font-medium">{product.name}</td>
+                  <td className="px-3 py-1.5 text-center text-gray-500">{product.proteins}</td>
+                  <td className="px-3 py-1.5 text-center text-gray-500">{product.fats}</td>
+                  <td className="px-3 py-1.5 text-center text-gray-500">{product.carbs}</td>
+                  <td className="px-3 py-1.5 text-center font-bold text-emerald-600">{product.kcal}</td>
+                  <td className="px-3 py-1.5 text-center text-gray-500">{product.portion}</td>
+                  <td className="px-3 py-1.5 text-center">
                     {product.is_ready_meal === 1 && (
-                      <span className="inline-flex items-center justify-center w-6 h-6 bg-emerald-100 text-emerald-600 rounded-full" title="Готовое блюдо">
-                        <Save size={12} />
+                      <span className="inline-flex items-center justify-center w-5 h-5 bg-emerald-100 text-emerald-600 rounded-full" title="Готовое блюдо">
+                        <Save size={10} />
                       </span>
                     )}
                   </td>
-                  <td className="p-4 text-right">
-                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <td className="px-3 py-1.5 text-right">
+                    <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button 
                         onClick={() => handleOpenModal(product)}
-                        className="text-emerald-600 hover:bg-emerald-50 p-2 rounded-lg"
+                        className="text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-none"
                         title="Редактировать"
                       >
-                        <Edit3 size={16} />
+                        <Edit3 size={14} />
                       </button>
                       {product.is_custom === 1 && (
                         <button 
                           onClick={() => handleDelete(product.id)}
-                          className={`p-2 rounded-lg transition-all ${confirmDeleteId === product.id ? 'bg-red-600 text-white' : 'text-red-400 hover:bg-red-50'}`}
+                          className={`p-1.5 rounded-none transition-all ${confirmDeleteId === product.id ? 'bg-red-600 text-white' : 'text-red-400 hover:bg-red-50'}`}
                           title={confirmDeleteId === product.id ? "Нажмите еще раз для удаления" : "Удалить"}
                         >
-                          {confirmDeleteId === product.id ? <span className="text-[10px] font-bold">УДАЛИТЬ?</span> : <Trash2 size={16} />}
+                          {confirmDeleteId === product.id ? <span className="text-[9px] font-bold">УДАЛИТЬ?</span> : <Trash2 size={14} />}
                         </button>
                       )}
                     </div>
@@ -324,8 +341,16 @@ export const Database: React.FC = () => {
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Изображение (100x100)</label>
                   <div className="flex items-center gap-4">
-                    {formData.image && (
-                      <img src={formData.image} className="w-[100px] h-[100px] rounded-xl object-cover border border-black/5" alt="Preview" />
+                    {previewImage && (
+                      <div className="relative group">
+                        <img src={previewImage} onError={(e) => { e.currentTarget.style.display = 'none'; }} className="w-[100px] h-[100px] rounded-xl object-cover border border-black/5" alt="Preview" />
+                        <button 
+                          onClick={() => { setPreviewImage(null); setImageBase64(null); }}
+                          className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
                     )}
                     <input 
                       type="file" 

@@ -15,7 +15,17 @@ import { LayoutDashboard, Calendar, Database as DbIcon, Settings as SettingsIcon
 
 function MainContent() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'planner' | 'database' | 'dishes' | 'settings'>('dashboard');
-  const { currentPlan, loadPlans, loadProducts, loadDishes } = useApp();
+  const { currentPlan, loadPlans, loadProducts, loadDishes, isDishConstructorDirty, setIsDishConstructorDirty } = useApp();
+
+  const handleTabChange = (tab: 'dashboard' | 'planner' | 'database' | 'dishes' | 'settings') => {
+    if (activeTab === 'dishes' && tab !== 'dishes' && isDishConstructorDirty) {
+      if (!window.confirm('У вас есть несохраненные изменения в конструкторе блюд. Вы уверены, что хотите уйти? Изменения будут потеряны.')) {
+        return;
+      }
+      setIsDishConstructorDirty(false);
+    }
+    setActiveTab(tab);
+  };
 
   return (
     <div className="flex flex-col h-screen bg-[#F5F5F0] text-[#1A1A1A] font-sans">
@@ -28,7 +38,7 @@ function MainContent() {
           
           <nav className="flex items-center gap-1">
             <button 
-              onClick={() => setActiveTab('dashboard')}
+              onClick={() => handleTabChange('dashboard')}
               className={`flex items-center gap-2 px-4 py-2 rounded-none transition-all ${activeTab === 'dashboard' ? 'bg-emerald-50 text-emerald-700 font-medium' : 'hover:bg-gray-50 text-gray-500'}`}
             >
               <LayoutDashboard size={18} />
@@ -36,7 +46,7 @@ function MainContent() {
             </button>
             
             <button 
-              onClick={() => setActiveTab('planner')}
+              onClick={() => handleTabChange('planner')}
               className={`flex items-center gap-2 px-4 py-2 rounded-none transition-all ${activeTab === 'planner' ? 'bg-emerald-50 text-emerald-700 font-medium' : 'hover:bg-gray-50 text-gray-500'}`}
             >
               <Calendar size={18} />
@@ -44,7 +54,7 @@ function MainContent() {
             </button>
 
             <button 
-              onClick={() => setActiveTab('dishes')}
+              onClick={() => handleTabChange('dishes')}
               className={`flex items-center gap-2 px-4 py-2 rounded-none transition-all ${activeTab === 'dishes' ? 'bg-emerald-50 text-emerald-700 font-medium' : 'hover:bg-gray-50 text-gray-500'}`}
             >
               <Utensils size={18} />
@@ -52,7 +62,7 @@ function MainContent() {
             </button>
             
             <button 
-              onClick={() => setActiveTab('database')}
+              onClick={() => handleTabChange('database')}
               className={`flex items-center gap-2 px-4 py-2 rounded-none transition-all ${activeTab === 'database' ? 'bg-emerald-50 text-emerald-700 font-medium' : 'hover:bg-gray-50 text-gray-500'}`}
             >
               <DbIcon size={18} />
@@ -60,7 +70,7 @@ function MainContent() {
             </button>
             
             <button 
-              onClick={() => setActiveTab('settings')}
+              onClick={() => handleTabChange('settings')}
               className={`flex items-center gap-2 px-4 py-2 rounded-none transition-all ${activeTab === 'settings' ? 'bg-emerald-50 text-emerald-700 font-medium' : 'hover:bg-gray-50 text-gray-500'}`}
             >
               <SettingsIcon size={18} />

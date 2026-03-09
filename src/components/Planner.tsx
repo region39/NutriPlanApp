@@ -10,7 +10,7 @@ import { toPng, toCanvas } from 'html-to-image';
 import { SearchableItemSelect } from './SearchableItemSelect';
 
 export const Planner: React.FC = () => {
-  const { currentPlan, updatePlan, savePlan, products, dishes, settings, loadProducts, loadDishes, showNotification } = useApp();
+  const { currentPlan, updatePlan, savePlan, products, dishes, settings, loadProducts, loadDishes, showNotification, updatePlanSettings } = useApp();
   const [isExporting, setIsExporting] = useState(false);
   const [showAddMeal, setShowAddMeal] = useState(false);
   const [confirmMealDeleteId, setConfirmMealDeleteId] = useState<string | null>(null);
@@ -18,6 +18,7 @@ export const Planner: React.FC = () => {
   const [editName, setEditName] = useState('');
   const [editStartDate, setEditStartDate] = useState('');
   const [editEndDate, setEditEndDate] = useState('');
+  const [activeAddCategory, setActiveAddCategory] = useState<string | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -644,8 +645,8 @@ export const Planner: React.FC = () => {
     <div className="p-2 h-full flex flex-col gap-2 overflow-hidden">
       {/* Header & Targets */}
       <div className="flex justify-between items-start shrink-0 gap-2 relative z-50">
-        <div className="flex flex-col gap-1">
-          <div className="bg-white px-3 py-1.5 rounded-xl border border-black/5 shadow-sm relative group/header-edit">
+        <div className="flex items-center gap-3">
+          <div className="bg-white px-3 py-1.5 rounded-xl border border-black/5 shadow-sm relative group/header-edit min-w-[200px]">
             {isEditingHeader ? (
               <div className="flex flex-col gap-2 p-1">
                 <input 
@@ -705,7 +706,7 @@ export const Planner: React.FC = () => {
             )}
           </div>
           
-          <div className="flex gap-1.5 bg-white p-1.5 rounded-xl border border-black/5 shadow-sm relative group/macros">
+          <div className="flex items-center gap-1.5 bg-white p-1.5 rounded-xl border border-black/5 shadow-sm relative group/macros">
             <div className="flex flex-col gap-0.5">
               <label className="text-[8px] font-bold text-gray-400 uppercase px-1">Ккал</label>
               <input 
@@ -744,7 +745,7 @@ export const Planner: React.FC = () => {
             </div>
 
             {/* Macro Validation Hint */}
-            <div className="absolute -right-6 top-1/2 -translate-y-1/2">
+            <div className="ml-1 mr-1 flex items-center justify-center">
               {(() => {
                 const p = currentPlan.targetProteins || 150;
                 const f = currentPlan.targetFats || 70;
@@ -755,7 +756,7 @@ export const Planner: React.FC = () => {
                 const isOk = Math.abs(diff) <= 5;
 
                 return (
-                  <div className="relative group/hint">
+                  <div className="relative group/hint flex items-center justify-center">
                     {isOk ? (
                       <CheckCircle size={14} className="text-emerald-500 cursor-help" />
                     ) : (
@@ -881,7 +882,7 @@ export const Planner: React.FC = () => {
       <div className="flex-1 overflow-auto bg-white rounded-2xl border border-black/5 shadow-sm">
         <div className="min-w-[1400px] flex flex-col" ref={tableRef}>
           {/* Days Header */}
-          <div className="grid grid-cols-[100px_repeat(7,1fr)] bg-gray-50 border-b border-black/5 sticky top-0 z-20">
+          <div className="grid grid-cols-[100px_repeat(7,1fr)] bg-gray-50 border-b border-black/5 sticky top-0 z-30">
             <div className="p-3 border-r border-black/5 font-bold text-[10px] text-gray-400 uppercase flex flex-col items-center justify-center gap-1">
               <span>Прием</span>
               <div className="relative">
@@ -896,18 +897,40 @@ export const Planner: React.FC = () => {
                     <div className="fixed inset-0 z-40" onClick={() => setShowAddMeal(false)}></div>
                     <div className="absolute top-full left-0 mt-1 bg-white border border-black/10 rounded-lg shadow-xl min-w-[150px] z-50">
                       <div className="p-2 text-[9px] font-bold text-gray-400 uppercase border-b border-black/5">Добавить блок</div>
-                      {(currentPlan.mealTypes || settings.mealTypes).map(mt => (
-                        <button 
-                          key={mt.id}
-                          onClick={() => {
-                            addMealBlock(mt.id);
-                            setShowAddMeal(false);
-                          }}
-                          className="w-full text-left px-3 py-2 text-[11px] hover:bg-emerald-50 text-gray-700 hover:text-emerald-700 transition-colors"
-                        >
-                          {mt.label}
-                        </button>
-                      ))}
+                      {(() => {
+                        const availableTypes = currentPlan.mealTypes || settings.mealTypes;
+                        if (availableTypes.length === 0) {
+                          return (
+                            <div className="p-3 text-center">
+                              <p className="text-[10px] text-gray-500 mb-2 leading-tight normal-case font-normal">Сперва добавьте Прием пищи</p>
+                              <button 
+                                onClick={() => {
+                                  const defaultTypes = settings.mealTypes.length > 0 
+                                    ? settings.mealTypes 
+                                    : [{ id: Math.random().toString(36).substr(2, 9), label: 'Завтрак' }];
+                                  updatePlanSettings(defaultTypes, currentPlan.mealCategories || settings.mealCategories);
+                                  setShowAddMeal(false);
+                                }}
+                                className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-1.5 rounded w-full hover:bg-emerald-200 font-medium transition-colors normal-case"
+                              >
+                                {settings.mealTypes.length > 0 ? '+ Из общего шаблона' : '+ Добавить "Завтрак"'}
+                              </button>
+                            </div>
+                          );
+                        }
+                        return availableTypes.map(mt => (
+                          <button 
+                            key={mt.id}
+                            onClick={() => {
+                              addMealBlock(mt.id);
+                              setShowAddMeal(false);
+                            }}
+                            className="w-full text-left px-3 py-2 text-[11px] hover:bg-emerald-50 text-gray-700 hover:text-emerald-700 transition-colors"
+                          >
+                            {mt.label}
+                          </button>
+                        ));
+                      })()}
                     </div>
                   </>
                 )}
@@ -929,17 +952,17 @@ export const Planner: React.FC = () => {
           </div>
 
           {/* Meals Rows */}
-          <div className="flex-1 divide-y divide-black/5">
+          <div className="flex-1 divide-y divide-black/5 pb-32">
             {activeMealTypes.map(mealType => (
-                <div key={mealType.id} className="grid grid-cols-[100px_repeat(7,1fr)] min-h-[100px]">
-                  <div className="p-2 border-r border-black/5 bg-gray-50/30 flex flex-col items-center justify-center text-center relative group/header">
-                    <span className="font-bold text-[11px]">{mealType.label}</span>
+                <div key={mealType.id} className={`grid grid-cols-[100px_repeat(7,1fr)] min-h-[80px] relative ${activeAddCategory?.endsWith(`-${mealType.id}`) ? 'z-50' : 'z-10'}`}>
+                  <div className="p-1 border-r border-black/5 bg-gray-50/30 flex flex-col items-center justify-center text-center relative group/header">
+                    <span className="font-bold text-[10px]">{mealType.label}</span>
                     <button 
                       onClick={() => removeMealBlock(mealType.id)}
-                      className={`absolute top-1 right-1 p-1 rounded-none transition-all ${confirmMealDeleteId === mealType.id ? 'bg-red-600 text-white opacity-100' : 'text-red-300 hover:text-red-500 opacity-0 group-hover/header:opacity-100'}`}
+                      className={`absolute top-1 right-1 p-0.5 rounded-none transition-all ${confirmMealDeleteId === mealType.id ? 'bg-red-600 text-white opacity-100' : 'text-red-300 hover:text-red-500 opacity-0 group-hover/header:opacity-100'}`}
                       title={confirmMealDeleteId === mealType.id ? "Нажмите еще раз" : "Убрать блок"}
                     >
-                      {confirmMealDeleteId === mealType.id ? <span className="text-[8px] font-bold">УДАЛИТЬ?</span> : <Trash2 size={12} />}
+                      {confirmMealDeleteId === mealType.id ? <span className="text-[8px] font-bold">УДАЛИТЬ?</span> : <Trash2 size={10} />}
                     </button>
                   </div>
                 
@@ -948,18 +971,18 @@ export const Planner: React.FC = () => {
                   const meal = dayData?.meals?.find(m => m.type === mealType.id);
                   
                   return (
-                    <div key={day.id} className="p-1 border-r border-black/5 last:border-r-0 flex flex-col gap-1 relative group">
-                      <div className="flex-1 space-y-1">
+                    <div key={day.id} className={`p-0.5 border-r border-black/5 last:border-r-0 flex flex-col gap-0.5 relative group ${activeAddCategory === `${day.id}-${mealType.id}` ? 'z-40' : ''}`}>
+                      <div className="flex-1 space-y-0.5 mb-5">
                         {meal?.items.map((item, idx) => (
-                          <div key={item.id} className="bg-white p-1.5 rounded-none border border-black/5 shadow-sm text-[11px] group/item relative">
+                          <div key={item.id} className="bg-white p-1 rounded-none border border-black/5 shadow-sm text-[10px] group/item relative">
                             <button 
                               onClick={() => removeItem(day.id, mealType.id, item.id)}
-                              className="absolute -top-1.5 -right-1.5 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover/item:opacity-100 transition-all shadow-md z-10 hover:bg-red-600"
+                              className="absolute -top-1.5 -right-1.5 p-0.5 bg-red-500 text-white rounded-full opacity-0 group-hover/item:opacity-100 transition-all shadow-md z-10 hover:bg-red-600"
                             >
                               <Trash2 size={8} />
                             </button>
                             
-                            <div className="flex flex-col gap-1">
+                            <div className="flex flex-col gap-0.5">
                               <div className="flex items-center justify-between gap-1">
                                 <div className="flex-1 min-w-0">
                                   {item.categoryName && (
@@ -979,21 +1002,21 @@ export const Planner: React.FC = () => {
                               </div>
 
                               <div className="flex items-center justify-between gap-1">
-                                <div className="flex items-center gap-1 bg-gray-50 px-1.5 py-0.5 rounded-none border border-black/5 flex-1">
+                                <div className="flex items-center gap-1 bg-gray-50 px-1 py-0.5 rounded-none border border-black/5 flex-1">
                                   <input 
                                     type="number" 
-                                    className="w-full bg-transparent border-none p-0 text-center font-black text-gray-700 focus:ring-0 text-[10px]"
+                                    className="w-full bg-transparent border-none p-0 text-center font-black text-gray-700 focus:ring-0 text-[9px]"
                                     value={item.weight}
                                     onChange={(e) => handleWeightChange(day.id, mealType.id, item.id, Number(e.target.value))}
                                   />
-                                  <span className="text-gray-400 font-bold text-[8px]">г/мл</span>
+                                  <span className="text-gray-400 font-bold text-[7px]">г/мл</span>
                                 </div>
-                                <div className="text-[10px] font-black text-emerald-600 whitespace-nowrap">
+                                <div className="text-[9px] font-black text-emerald-600 whitespace-nowrap">
                                   {settings.calculationMethod === 'manual' ? (
                                     <div className="flex items-center gap-0.5">
                                       <input 
                                         type="number" 
-                                        className="w-10 bg-transparent border-none p-0 text-right font-black text-emerald-600 focus:ring-0 text-[10px]"
+                                        className="w-8 bg-transparent border-none p-0 text-right font-black text-emerald-600 focus:ring-0 text-[9px]"
                                         value={Math.round(item.kcal)}
                                         onChange={(e) => handleManualValueChange(day.id, mealType.id, item.id, 'kcal', Number(e.target.value))}
                                       />
@@ -1005,44 +1028,44 @@ export const Planner: React.FC = () => {
                                 </div>
                               </div>
 
-                              <div className="grid grid-cols-3 gap-0.5 pt-1 border-t border-black/5">
+                              <div className="grid grid-cols-3 gap-0.5 pt-0.5 border-t border-black/5">
                                 <div className="flex flex-col items-center">
-                                  <span className="text-[7px] text-gray-400 uppercase font-black tracking-tighter">Б</span>
+                                  <span className="text-[6px] text-gray-400 uppercase font-black tracking-tighter">Б</span>
                                   {settings.calculationMethod === 'manual' ? (
                                     <input 
                                       type="number" 
-                                      className="w-full bg-transparent border-none p-0 text-center font-black text-gray-700 focus:ring-0 text-[10px]"
+                                      className="w-full bg-transparent border-none p-0 text-center font-black text-gray-700 focus:ring-0 text-[9px]"
                                       value={item.proteins}
                                       onChange={(e) => handleManualValueChange(day.id, mealType.id, item.id, 'proteins', Number(e.target.value))}
                                     />
                                   ) : (
-                                    <span className="font-black text-gray-700 text-[10px]">{item.proteins}</span>
+                                    <span className="font-black text-gray-700 text-[9px]">{item.proteins}</span>
                                   )}
                                 </div>
                                 <div className="flex flex-col items-center border-x border-black/5">
-                                  <span className="text-[7px] text-gray-400 uppercase font-black tracking-tighter">Ж</span>
+                                  <span className="text-[6px] text-gray-400 uppercase font-black tracking-tighter">Ж</span>
                                   {settings.calculationMethod === 'manual' ? (
                                     <input 
                                       type="number" 
-                                      className="w-full bg-transparent border-none p-0 text-center font-black text-gray-700 focus:ring-0 text-[10px]"
+                                      className="w-full bg-transparent border-none p-0 text-center font-black text-gray-700 focus:ring-0 text-[9px]"
                                       value={item.fats}
                                       onChange={(e) => handleManualValueChange(day.id, mealType.id, item.id, 'fats', Number(e.target.value))}
                                     />
                                   ) : (
-                                    <span className="font-black text-gray-700 text-[10px]">{item.fats}</span>
+                                    <span className="font-black text-gray-700 text-[9px]">{item.fats}</span>
                                   )}
                                 </div>
                                 <div className="flex flex-col items-center">
-                                  <span className="text-[7px] text-gray-400 uppercase font-black tracking-tighter">У</span>
+                                  <span className="text-[6px] text-gray-400 uppercase font-black tracking-tighter">У</span>
                                   {settings.calculationMethod === 'manual' ? (
                                     <input 
                                       type="number" 
-                                      className="w-full bg-transparent border-none p-0 text-center font-black text-gray-700 focus:ring-0 text-[10px]"
+                                      className="w-full bg-transparent border-none p-0 text-center font-black text-gray-700 focus:ring-0 text-[9px]"
                                       value={item.carbs}
                                       onChange={(e) => handleManualValueChange(day.id, mealType.id, item.id, 'carbs', Number(e.target.value))}
                                     />
                                   ) : (
-                                    <span className="font-black text-gray-700 text-[10px]">{item.carbs}</span>
+                                    <span className="font-black text-gray-700 text-[9px]">{item.carbs}</span>
                                   )}
                                 </div>
                               </div>
@@ -1050,24 +1073,41 @@ export const Planner: React.FC = () => {
                           </div>
                         ))}
                       </div>
-                      <div className="absolute bottom-1 right-1 flex flex-col items-end gap-1 pointer-events-none">
-                        <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto">
-                          {planMealCategories.map(cat => (
-                            <button 
-                              key={cat}
-                              onClick={() => addOtherRow(day.id, mealType.id, cat)}
-                              className="text-[8px] bg-white border border-black/5 px-2 py-0.5 rounded shadow-sm hover:bg-emerald-50 hover:text-emerald-700 transition-colors whitespace-nowrap"
-                            >
-                              + {cat}
-                            </button>
-                          ))}
-                          <button 
-                            onClick={() => addOtherRow(day.id, mealType.id, 'Другое')}
-                            className="p-1 bg-emerald-600 text-white rounded-full shadow-lg hover:bg-emerald-700 transition-colors self-end"
-                          >
-                            <Plus size={10} />
-                          </button>
-                        </div>
+                      <div className="absolute bottom-0.5 right-0.5 flex flex-col items-end gap-1">
+                        {activeAddCategory === `${day.id}-${mealType.id}` && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setActiveAddCategory(null)}></div>
+                            <div className="absolute top-full right-0 mt-1 flex flex-col gap-1 z-50 bg-white border border-black/10 p-1 rounded-lg shadow-xl min-w-[120px]">
+                              {planMealCategories.map(cat => (
+                                <button 
+                                  key={cat}
+                                  onClick={() => {
+                                    addOtherRow(day.id, mealType.id, cat);
+                                    setActiveAddCategory(null);
+                                  }}
+                                  className="text-[10px] text-left px-2 py-1.5 rounded hover:bg-emerald-50 hover:text-emerald-700 transition-colors whitespace-nowrap w-full"
+                                >
+                                  + {cat}
+                                </button>
+                              ))}
+                              <button 
+                                onClick={() => {
+                                  addOtherRow(day.id, mealType.id, 'Другое');
+                                  setActiveAddCategory(null);
+                                }}
+                                className="text-[10px] text-left px-2 py-1.5 rounded hover:bg-emerald-50 hover:text-emerald-700 transition-colors whitespace-nowrap w-full border-t border-black/5 mt-1 pt-1.5"
+                              >
+                                + Другое
+                              </button>
+                            </div>
+                          </>
+                        )}
+                        <button 
+                          onClick={() => setActiveAddCategory(activeAddCategory === `${day.id}-${mealType.id}` ? null : `${day.id}-${mealType.id}`)}
+                          className={`p-1 rounded-full transition-all self-end z-50 relative ${activeAddCategory === `${day.id}-${mealType.id}` ? 'bg-emerald-600 text-white shadow-md' : 'bg-emerald-50 text-emerald-600/30 hover:bg-emerald-600 hover:text-white hover:shadow-md'}`}
+                        >
+                          <Plus size={10} />
+                        </button>
                       </div>
                     </div>
                   );

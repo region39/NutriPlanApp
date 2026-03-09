@@ -10,6 +10,7 @@ interface Option {
   carbs?: number;
   type?: 'product' | 'dish';
   category?: string;
+  hasImage?: boolean;
 }
 
 interface SearchableItemSelectProps {
@@ -58,7 +59,8 @@ export const SearchableItemSelect: React.FC<SearchableItemSelectProps> = ({
           fats: p.fats,
           carbs: p.carbs,
           type: 'product',
-          category: p.category
+          category: p.category,
+          hasImage: p.hasImage
         });
       });
     }
@@ -72,7 +74,8 @@ export const SearchableItemSelect: React.FC<SearchableItemSelectProps> = ({
           fats: d.fats,
           carbs: d.carbs,
           type: 'dish',
-          category: d.category
+          category: d.category,
+          hasImage: d.hasImage
         });
       });
     }
@@ -141,20 +144,36 @@ export const SearchableItemSelect: React.FC<SearchableItemSelectProps> = ({
                   onClick={() => handleSelect(opt)}
                   className="px-3 py-1.5 hover:bg-emerald-50 cursor-pointer flex items-center justify-between group border-b border-black/[0.02] last:border-0"
                 >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-[11px] font-bold text-gray-700 group-hover:text-emerald-700 truncate">{opt.name}</p>
-                      {opt.type && (
-                        <span className={`text-[7px] font-black uppercase px-1 rounded-sm ${opt.type === 'dish' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                          {opt.type === 'dish' ? 'Блюдо' : 'Прод'}
-                        </span>
+                  <div className="flex items-center gap-2 min-w-0">
+                    {opt.type && (
+                      <div className="w-6 h-6 rounded bg-gray-100 border border-black/5 flex items-center justify-center shrink-0 overflow-hidden">
+                        {(opt as any).hasImage ? (
+                          <img 
+                            src={`/api/images/${opt.type}/${String(opt.id).split(':')[1]}`}
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                            className="w-full h-full object-cover"
+                            alt={opt.name}
+                          />
+                        ) : (
+                          <span className="text-gray-300 text-[6px] font-bold uppercase">Нет</span>
+                        )}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-[11px] font-bold text-gray-700 group-hover:text-emerald-700 truncate">{opt.name}</p>
+                        {opt.type && (
+                          <span className={`text-[7px] font-black uppercase px-1 rounded-sm ${opt.type === 'dish' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                            {opt.type === 'dish' ? 'Блюдо' : 'Прод'}
+                          </span>
+                        )}
+                      </div>
+                      {opt.kcal !== undefined && (
+                        <p className="text-[9px] text-gray-400 font-medium">
+                          {Math.round(opt.kcal)} ккал | Б:{opt.proteins} Ж:{opt.fats} У:{opt.carbs}
+                        </p>
                       )}
                     </div>
-                    {opt.kcal !== undefined && (
-                      <p className="text-[9px] text-gray-400 font-medium">
-                        {Math.round(opt.kcal)} ккал | Б:{opt.proteins} Ж:{opt.fats} У:{opt.carbs}
-                      </p>
-                    )}
                   </div>
                   {String(value) === String(opt.id) && <Check size={12} className="text-emerald-600 shrink-0 ml-2" />}
                 </div>
