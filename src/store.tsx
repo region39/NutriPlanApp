@@ -52,27 +52,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const loadPlans = async () => {
-    const res = await fetch('/api/plans');
-    const data = await res.json();
-    setPlans(data);
+    try {
+      const res = await fetch('/api/plans', { credentials: 'include' });
+      if (res.status === 401) {
+        window.location.reload();
+        return;
+      }
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setPlans(data);
+      } else {
+        console.error('API returned non-array for plans:', data);
+        setPlans([]);
+      }
+    } catch (err) {
+      console.error('Failed to load plans:', err);
+      setPlans([]);
+    }
   };
 
   const loadPlan = async (id: string) => {
-    const res = await fetch(`/api/plans/${id}`);
-    const data = await res.json();
-    
-    // Normalize data to only include current DAYS
-    const normalizedData: any = {};
-    DAYS.forEach(day => {
-      normalizedData[day.id] = data.data[day.id] || { meals: [] };
-    });
-    
-    setCurrentPlan({ 
-      ...data, 
-      data: normalizedData,
-      mealTypes: data.mealTypes || settings.mealTypes,
-      mealCategories: data.mealCategories || settings.mealCategories
-    });
+    try {
+      const res = await fetch(`/api/plans/${id}`, { credentials: 'include' });
+      if (res.status === 401) {
+        window.location.reload();
+        return;
+      }
+      const data = await res.json();
+      
+      // Normalize data to only include current DAYS
+      const normalizedData: any = {};
+      DAYS.forEach(day => {
+        normalizedData[day.id] = data.data[day.id] || { meals: [] };
+      });
+      
+      setCurrentPlan({ 
+        ...data, 
+        data: normalizedData,
+        mealTypes: data.mealTypes || settings.mealTypes,
+        mealCategories: data.mealCategories || settings.mealCategories
+      });
+    } catch (err) {
+      console.error('Failed to load plan:', err);
+    }
   };
 
   const savePlan = async (plan: DietPlan) => {
@@ -80,8 +102,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const res = await fetch('/api/plans', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(plan)
+        body: JSON.stringify(plan),
+        credentials: 'include'
       });
+      if (res.status === 401) {
+        window.location.reload();
+        return;
+      }
       if (res.ok) {
         showNotification('Рацион успешно сохранен!', 'success');
         await loadPlans();
@@ -94,22 +121,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deletePlan = async (id: string) => {
-    await fetch(`/api/plans/${id}`, { method: 'DELETE' });
-    await loadPlans();
-    if (currentPlan?.id === id) setCurrentPlan(null);
-    showNotification('Рацион удален', 'success');
+    try {
+      const res = await fetch(`/api/plans/${id}`, { method: 'DELETE', credentials: 'include' });
+      if (res.status === 401) {
+        window.location.reload();
+        return;
+      }
+      await loadPlans();
+      if (currentPlan?.id === id) setCurrentPlan(null);
+      showNotification('Рацион удален', 'success');
+    } catch (err) {
+      console.error('Failed to delete plan:', err);
+    }
   };
 
   const duplicatePlan = async (id: string) => {
-    const res = await fetch(`/api/plans/${id}`);
-    const plan = await res.json();
-    const newPlan = {
-      ...plan,
-      id: Math.random().toString(36).substr(2, 9),
-      clientName: `${plan.clientName} (Копия)`,
-      createdAt: new Date().toISOString()
-    };
-    await savePlan(newPlan);
+    try {
+      const res = await fetch(`/api/plans/${id}`, { credentials: 'include' });
+      if (res.status === 401) {
+        window.location.reload();
+        return;
+      }
+      const plan = await res.json();
+      const newPlan = {
+        ...plan,
+        id: Math.random().toString(36).substr(2, 9),
+        clientName: `${plan.clientName} (Копия)`,
+        createdAt: new Date().toISOString()
+      };
+      await savePlan(newPlan);
+    } catch (err) {
+      console.error('Failed to duplicate plan:', err);
+    }
   };
 
   const createNewPlan = (clientName: string, targetKcal: number, startDate?: string, endDate?: string) => {
@@ -180,14 +223,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const loadProducts = async () => {
-    const res = await fetch('/api/products');
-    const data = await res.json();
-    setProducts(data);
+    try {
+      const res = await fetch('/api/products', { credentials: 'include' });
+      if (res.status === 401) {
+        window.location.reload();
+        return;
+      }
+      const data = await res.json();
+      setProducts(data);
+    } catch (err) {
+      console.error('Failed to load products:', err);
+    }
   };
 
   const loadDishes = async () => {
     try {
-      const res = await fetch(`/api/dishes?full=true&t=${Date.now()}`);
+      const res = await fetch(`/api/dishes?full=true&t=${Date.now()}`, { credentials: 'include' });
+      if (res.status === 401) {
+        window.location.reload();
+        return;
+      }
       const data = await res.json();
       console.log('Loaded dishes:', data.length);
       setDishes(data);
@@ -197,30 +252,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const loadSettings = async () => {
-    const res = await fetch('/api/settings');
-    const data = await res.json();
-    if (Object.keys(data).length > 0) {
-      setSettings({
-        deviation: Number(data.deviation) || 5,
-        calculationMethod: data.calculationMethod as any || 'proportional',
-        mealTypes: data.mealTypes ? JSON.parse(data.mealTypes) : MEAL_TYPES,
-        mealCategories: data.mealCategories ? JSON.parse(data.mealCategories) : DEFAULT_SUB_ROWS
-      });
+    try {
+      const res = await fetch('/api/settings', { credentials: 'include' });
+      if (res.status === 401) {
+        window.location.reload();
+        return;
+      }
+      const data = await res.json();
+      if (Object.keys(data).length > 0) {
+        setSettings({
+          deviation: Number(data.deviation) || 5,
+          calculationMethod: data.calculationMethod as any || 'proportional',
+          mealTypes: data.mealTypes ? JSON.parse(data.mealTypes) : MEAL_TYPES,
+          mealCategories: data.mealCategories ? JSON.parse(data.mealCategories) : DEFAULT_SUB_ROWS
+        });
+      }
+    } catch (err) {
+      console.error('Failed to load settings:', err);
     }
   };
 
   const updateSettings = async (newSettings: Settings) => {
-    setSettings(newSettings);
-    const payload = {
-      ...newSettings,
-      mealTypes: JSON.stringify(newSettings.mealTypes),
-      mealCategories: JSON.stringify(newSettings.mealCategories)
-    };
-    await fetch('/api/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ settings: payload })
-    });
+    try {
+      setSettings(newSettings);
+      const payload = {
+        ...newSettings,
+        mealTypes: JSON.stringify(newSettings.mealTypes),
+        mealCategories: JSON.stringify(newSettings.mealCategories)
+      };
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: payload }),
+        credentials: 'include'
+      });
+      if (res.status === 401) {
+        window.location.reload();
+        return;
+      }
+    } catch (err) {
+      console.error('Failed to update settings:', err);
+    }
   };
 
   useEffect(() => {

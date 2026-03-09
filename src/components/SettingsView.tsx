@@ -1,12 +1,55 @@
 import React, { useState } from 'react';
 import { useApp } from '../store';
-import { Settings as SettingsIcon, Info, Plus, Trash2, Utensils, ChevronUp, ChevronDown } from 'lucide-react';
+import { Settings as SettingsIcon, Info, Plus, Trash2, Utensils, ChevronUp, ChevronDown, Lock, Eye, EyeOff } from 'lucide-react';
+import { APP_VERSION, BUILD_NUMBER } from '../constants';
 
 export const SettingsView: React.FC = () => {
   const { settings, updateSettings, currentPlan, updatePlanSettings, dishes, showNotification } = useApp();
   const [activeTab, setActiveTab] = useState<'global' | 'project'>(currentPlan ? 'project' : 'global');
   const [newMealLabel, setNewMealLabel] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPasswords, setShowPasswords] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      showNotification('Новые пароли не совпадают', 'error');
+      return;
+    }
+    if (newPassword.length < 6) {
+      showNotification('Новый пароль должен быть не менее 6 символов', 'error');
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      const response = await fetch('/api/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        showNotification('Пароль успешно изменен', 'success');
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        showNotification(data.error || 'Ошибка при смене пароля', 'error');
+      }
+    } catch (err) {
+      showNotification('Ошибка подключения к серверу', 'error');
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
 
   const isProject = activeTab === 'project' && currentPlan;
   const currentMealTypes = isProject ? (currentPlan.mealTypes || settings.mealTypes) : settings.mealTypes;
@@ -441,6 +484,82 @@ export const SettingsView: React.FC = () => {
             <p className="text-[11px] text-emerald-50/80 leading-relaxed">
               Настройте приемы пищи один раз и используйте их как шаблон для всех новых клиентов.
             </p>
+          </div>
+
+          {/* Security Section */}
+          <div className="bg-white p-6 rounded-2xl border border-black/5 shadow-sm">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-red-100 text-red-600 rounded-lg">
+                <Lock size={20} />
+              </div>
+              <h3 className="font-bold text-lg">Безопасность</h3>
+            </div>
+            <p className="text-xs text-gray-500 mb-4">
+              Смена пароля администратора.
+            </p>
+            
+            <form onSubmit={handlePasswordChange} className="space-y-3">
+              <div className="relative">
+                <input 
+                  type={showPasswords ? "text" : "password"} 
+                  placeholder="Текущий пароль" 
+                  className="w-full px-3 py-2 border border-black/10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="relative">
+                <input 
+                  type={showPasswords ? "text" : "password"} 
+                  placeholder="Новый пароль" 
+                  className="w-full px-3 py-2 border border-black/10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="relative">
+                <input 
+                  type={showPasswords ? "text" : "password"} 
+                  placeholder="Повторите пароль" 
+                  className="w-full px-3 py-2 border border-black/10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                />
+              </div>
+              
+              <div className="flex items-center justify-between gap-2">
+                <button 
+                  type="button"
+                  onClick={() => setShowPasswords(!showPasswords)}
+                  className="text-[10px] font-bold text-gray-400 uppercase hover:text-gray-600 flex items-center gap-1"
+                >
+                  {showPasswords ? <EyeOff size={14} /> : <Eye size={14} />}
+                  {showPasswords ? 'Скрыть' : 'Показать'}
+                </button>
+                
+                <button 
+                  type="submit"
+                  disabled={passwordLoading}
+                  className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-700 transition-colors disabled:opacity-50"
+                >
+                  {passwordLoading ? '...' : 'Обновить'}
+                </button>
+              </div>
+            </form>
+            
+            <div className="mt-4 p-3 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+              <p className="text-[10px] text-gray-400 leading-tight">
+                <span className="font-bold text-gray-500">Восстановление:</span> Если вы забыли пароль, создайте файл <code className="bg-gray-200 px-1 rounded">reset_password.txt</code> в корневой папке программы и впишите туда новый пароль. Перезапустите программу.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-8 text-center text-gray-400 text-xs">
+            <p>NutriPlan+ v{APP_VERSION}</p>
+            <p className="text-[10px] mt-1 opacity-70">Сборка {BUILD_NUMBER}</p>
           </div>
         </div>
       </div>

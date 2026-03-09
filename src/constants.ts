@@ -17,3 +17,6 @@ export const MEAL_TYPES = [
 ];
 
 export const DEFAULT_SUB_ROWS = ['Основное блюдо', 'Гарнир', 'Салат', 'Дополнительно'];
+
+export const APP_VERSION = '1.0.66';
+export const BUILD_NUMBER = '66';

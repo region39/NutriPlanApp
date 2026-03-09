@@ -1,12 +1,13 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useApp } from '../store';
 import { DAYS } from '../constants';
-import { Plus, Save, Download, FileText, PieChart as PieIcon, Activity, Printer, Target, Trash2, AlertCircle, CheckCircle, Info, Edit2 } from 'lucide-react';
+import { Plus, Save, Download, FileText, PieChart as PieIcon, Activity, Printer, Target, Trash2, AlertCircle, CheckCircle, Info, Edit2, Share2, Copy } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, Legend, CartesianGrid } from 'recharts';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { toPng, toCanvas } from 'html-to-image';
+import { QRCodeSVG } from 'qrcode.react';
 import { SearchableItemSelect } from './SearchableItemSelect';
 
 export const Planner: React.FC = () => {
@@ -19,6 +20,7 @@ export const Planner: React.FC = () => {
   const [editStartDate, setEditStartDate] = useState('');
   const [editEndDate, setEditEndDate] = useState('');
   const [activeAddCategory, setActiveAddCategory] = useState<string | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
   const tableRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -604,6 +606,18 @@ export const Planner: React.FC = () => {
     }
   };
 
+  const handleShare = () => {
+    setShowShareModal(true);
+  };
+
+  const copyShareLink = () => {
+    if (!currentPlan) return;
+    const link = `${window.location.origin}/?shared=${currentPlan.id}`;
+    navigator.clipboard.writeText(link).then(() => {
+      showNotification('Ссылка скопирована в буфер обмена', 'success');
+    });
+  };
+
   if (!currentPlan) {
     return (
       <div className="h-full flex flex-col items-center justify-center text-gray-400 p-8">
@@ -801,6 +815,13 @@ export const Planner: React.FC = () => {
               Сохранить
             </button>
             <button 
+              onClick={handleShare}
+              className="text-xs font-bold text-indigo-600 hover:underline cursor-pointer flex items-center gap-1"
+            >
+              <Share2 size={14} />
+              Поделиться
+            </button>
+            <button 
               onClick={exportExcel}
               className="text-xs font-bold text-blue-700 hover:underline cursor-pointer flex items-center gap-1"
             >
@@ -840,6 +861,61 @@ export const Planner: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Share Modal */}
+      {showShareModal && currentPlan && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="p-6 border-b border-black/5 flex justify-between items-center bg-gray-50/50">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <Share2 size={20} className="text-indigo-600" />
+                Поделиться рационом
+              </h3>
+              <button 
+                onClick={() => setShowShareModal(false)}
+                className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6 flex flex-col items-center">
+              <p className="text-sm text-gray-500 text-center mb-6">
+                Отправьте эту ссылку клиенту или дайте отсканировать QR-код для просмотра рациона с телефона.
+              </p>
+              
+              <div className="bg-white p-4 rounded-xl shadow-sm border border-black/5 mb-6">
+                <QRCodeSVG 
+                  value={`${window.location.origin}/?shared=${currentPlan.id}`} 
+                  size={200}
+                  level="H"
+                  includeMargin={true}
+                />
+              </div>
+
+              <div className="w-full">
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+                  Ссылка для клиента
+                </label>
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    readOnly 
+                    value={`${window.location.origin}/?shared=${currentPlan.id}`}
+                    className="flex-1 bg-gray-50 border border-black/10 rounded-lg px-3 py-2 text-sm text-gray-600 focus:outline-none"
+                  />
+                  <button 
+                    onClick={copyShareLink}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                  >
+                    <Copy size={16} />
+                    Копировать
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Daily Remaining Summary (Separate Block) */}
       <div className="shrink-0 bg-white rounded-xl border border-black/5 shadow-sm overflow-hidden">

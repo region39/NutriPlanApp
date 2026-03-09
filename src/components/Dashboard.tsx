@@ -15,7 +15,7 @@ export const Dashboard: React.FC<{ onSelectPlan: () => void }> = ({ onSelectPlan
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
 
-  const filteredPlans = plans
+  const filteredPlans = (Array.isArray(plans) ? plans : [])
     .filter(p => {
       const name = p.clientName || p.client_name || '';
       return name.toLowerCase().includes(search.toLowerCase());
@@ -56,7 +56,8 @@ export const Dashboard: React.FC<{ onSelectPlan: () => void }> = ({ onSelectPlan
     await fetch('/api/plans', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updatedPlan)
+      body: JSON.stringify(updatedPlan),
+      credentials: 'include'
     });
     setEditingId(null);
     await loadPlans();
@@ -89,7 +90,7 @@ export const Dashboard: React.FC<{ onSelectPlan: () => void }> = ({ onSelectPlan
   };
 
   const handleExportPlan = async (planId: string) => {
-    const res = await fetch(`/api/plans/${planId}`);
+    const res = await fetch(`/api/plans/${planId}`, { credentials: 'include' });
     const plan = await res.json();
     const blob = new Blob([JSON.stringify(plan, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);

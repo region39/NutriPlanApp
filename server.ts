@@ -4,9 +4,14 @@ import Database from "better-sqlite3";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
+import cookieParser from "cookie-parser";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const JWT_SECRET = process.env.JWT_SECRET || "nutriplan-super-secret-key-2026";
 
 const UPLOADS_DIR = path.join(__dirname, "uploads");
 if (!fs.existsSync(UPLOADS_DIR)) {
@@ -174,7 +179,38 @@ db.exec(`
     key TEXT PRIMARY KEY,
     value TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL
+  );
 `);
+
+// Password recovery mechanism: check for reset_password.txt in root directory
+const resetFile = path.join(process.cwd(), 'reset_password.txt');
+if (fs.existsSync(resetFile)) {
+  try {
+    const newPassword = fs.readFileSync(resetFile, 'utf8').trim();
+    if (newPassword) {
+      const hash = bcrypt.hashSync(newPassword, 10);
+      db.prepare("UPDATE users SET password_hash = ? WHERE username = 'admin'").run(hash);
+      console.log("Admin password reset from reset_password.txt");
+      fs.unlinkSync(resetFile);
+    }
+  } catch (err) {
+    console.error("Failed to reset password from file:", err);
+  }
+}
+
+// Create default admin user if no users exist
+const adminUser = db.prepare("SELECT * FROM users WHERE username = 'admin'").get();
+if (!adminUser) {
+  const complexPassword = "NutriPlan_2024_Secure!";
+  const defaultPasswordHash = bcrypt.hashSync(complexPassword, 10);
+  db.prepare("INSERT INTO users (username, password_hash) VALUES (?, ?)").run("admin", defaultPasswordHash);
+  console.log(`Created default user 'admin' with complex password: ${complexPassword}`);
+}
 
 // Seed initial products if empty
 function seedDatabase(database: Database.Database) {
@@ -539,7 +575,136 @@ async function startServer() {
   const PORT = 3000;
 
   app.use(express.json({ limit: '10mb' }));
+  app.use(cookieParser());
   app.use("/uploads", express.static(UPLOADS_DIR));
+
+  // Auth Middleware
+  const requireAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    // Skip auth for public routes
+    // Note: req.path is relative to the mount point (/api)
+    if (
+      req.path.startsWith('/public/') || 
+      req.path.startsWith('/images/') || 
+      req.path === '/login' ||
+      req.path === '/logout' ||
+      req.path === '/me' ||
+      req.path === '/check-admin'
+    ) {
+      return next();
+    }
+
+    const token = req.cookies.auth_token;
+    if (!token) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      jwt.verify(token, JWT_SECRET);
+      next();
+    } catch (err) {
+      res.status(401).json({ error: "Invalid token" });
+    }
+  };
+
+  // Apply auth middleware to all API routes
+  app.use('/api', requireAuth);
+
+  // Auth Routes
+  app.post("/api/login", (req, res) => {
+    const username = req.body.username?.trim();
+    const password = req.body.password?.trim();
+    const rememberMe = req.body.rememberMe;
+    
+    console.log(`Login attempt for user: "${username}"`);
+    
+    if (!username || !password) {
+      return res.status(400).json({ error: "Username and password required" });
+    }
+
+    const user = db.prepare("SELECT * FROM users WHERE username = ?").get(username) as any;
+    
+    if (!user) {
+      console.log(`User "${username}" not found in database`);
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const isMatch = bcrypt.compareSync(password, user.password_hash);
+    console.log(`Password match for "${username}": ${isMatch}`);
+
+    if (!isMatch) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: rememberMe ? '30d' : '1d' });
+    
+    const cookieOptions: express.CookieOptions = {
+      httpOnly: true,
+      secure: true,      // Required for SameSite=None
+      sameSite: 'none',  // Required for cross-origin iframe
+      path: '/'
+    };
+
+    if (rememberMe) {
+      cookieOptions.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
+    }
+
+    res.cookie('auth_token', token, cookieOptions);
+
+    res.json({ success: true, username: user.username });
+  });
+
+  app.post("/api/logout", (req, res) => {
+    res.clearCookie('auth_token', { 
+      path: '/',
+      secure: true,
+      sameSite: 'none'
+    });
+    res.json({ success: true });
+  });
+
+  app.get("/api/me", (req, res) => {
+    const token = req.cookies.auth_token;
+    if (!token) {
+      return res.json({ authenticated: false });
+    }
+
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      res.json({ authenticated: true, username: decoded.username });
+    } catch (err) {
+      res.json({ authenticated: false });
+    }
+  });
+
+  app.get("/api/check-admin", (req, res) => {
+    const user = db.prepare("SELECT * FROM users WHERE username = 'admin'").get() as any;
+    if (!user) return res.json({ error: "No admin user" });
+    const isMatch = bcrypt.compareSync("admin", user.password_hash);
+    res.json({ username: user.username, hash: user.password_hash, isMatch });
+  });
+
+  app.post("/api/change-password", (req, res) => {
+    const { currentPassword, newPassword } = req.body;
+    const token = req.cookies.auth_token;
+    
+    if (!token) return res.status(401).json({ error: "Unauthorized" });
+    
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      const user = db.prepare("SELECT * FROM users WHERE id = ?").get(decoded.id) as any;
+      
+      if (!user || !bcrypt.compareSync(currentPassword, user.password_hash)) {
+        return res.status(400).json({ error: "Неверный текущий пароль" });
+      }
+      
+      const newHash = bcrypt.hashSync(newPassword, 10);
+      db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(newHash, user.id);
+      
+      res.json({ success: true });
+    } catch (err) {
+      res.status(401).json({ error: "Invalid token" });
+    }
+  });
 
   // Dynamic Image Serving API
   app.get("/api/images/:type/:id", (req, res) => {
@@ -793,6 +958,30 @@ async function startServer() {
       });
     } else {
       res.status(404).send("Plan not found");
+    }
+  });
+
+  // Public endpoint for sharing plans (read-only)
+  app.get("/api/public/plans/:id", (req, res) => {
+    const plan = db.prepare("SELECT * FROM plans WHERE id = ?").get(req.params.id);
+    if (plan) {
+      const p = plan as any;
+      res.json({ 
+        id: p.id,
+        clientName: p.client_name,
+        targetKcal: p.target_kcal,
+        targetProteins: p.target_proteins,
+        targetFats: p.target_fats,
+        targetCarbs: p.target_carbs,
+        createdAt: p.created_at,
+        startDate: p.start_date,
+        endDate: p.end_date,
+        mealTypes: p.meal_types ? JSON.parse(p.meal_types) : null,
+        mealCategories: p.meal_categories ? JSON.parse(p.meal_categories) : null,
+        data: JSON.parse(p.data) 
+      });
+    } else {
+      res.status(404).json({ error: "Plan not found" });
     }
   });
 

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppProvider, useApp } from './store';
 import { Dashboard } from './components/Dashboard';
 import { Planner } from './components/Planner';
@@ -11,9 +11,12 @@ import { Database } from './components/Database';
 import { DishConstructor } from './components/DishConstructor';
 import { SettingsView } from './components/SettingsView';
 import { Notification } from './components/Notification';
-import { LayoutDashboard, Calendar, Database as DbIcon, Settings as SettingsIcon, Utensils, RefreshCw } from 'lucide-react';
+import { PublicPlanView } from './components/PublicPlanView';
+import { Login } from './components/Login';
+import { LayoutDashboard, Calendar, Database as DbIcon, Settings as SettingsIcon, Utensils, RefreshCw, LogOut } from 'lucide-react';
+import { APP_VERSION, BUILD_NUMBER } from './constants';
 
-function MainContent() {
+function MainContent({ onLogout }: { onLogout: () => void }) {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'planner' | 'database' | 'dishes' | 'settings'>('dashboard');
   const { currentPlan, loadPlans, loadProducts, loadDishes, isDishConstructorDirty, setIsDishConstructorDirty } = useApp();
 
@@ -27,13 +30,30 @@ function MainContent() {
     setActiveTab(tab);
   };
 
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/logout', { method: 'POST', credentials: 'include' });
+      // Clear state and redirect to root
+      onLogout();
+      window.location.href = '/';
+    } catch (e) {
+      console.error('Logout failed', e);
+      window.location.href = '/';
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen bg-[#F5F5F0] text-[#1A1A1A] font-sans">
       {/* Top Navigation */}
       <header className="bg-white border-b border-black/5 flex items-center justify-between px-6 py-3 shadow-sm z-50">
         <div className="flex items-center gap-8">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-emerald-600">NutriPlan+</h1>
+            <h1 className="text-xl font-bold tracking-tight text-emerald-600 flex items-baseline gap-2">
+              NutriPlan+
+              <span className="text-[10px] font-medium text-gray-400 uppercase tracking-widest" title={`Build ${BUILD_NUMBER}`}>
+                v{APP_VERSION}
+              </span>
+            </h1>
           </div>
           
           <nav className="flex items-center gap-1">
@@ -91,6 +111,14 @@ function MainContent() {
           >
             <RefreshCw size={18} />
           </button>
+
+          <button 
+            onClick={handleLogout}
+            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+            title="Выйти"
+          >
+            <LogOut size={18} />
+          </button>
           
           {currentPlan && (
             <div className="flex items-center gap-3 bg-emerald-50 px-4 py-1.5 rounded-none border border-emerald-100">
@@ -115,9 +143,60 @@ function MainContent() {
 }
 
 export default function App() {
+  const [sharedPlanId, setSharedPlanId] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
+  const checkAuth = async () => {
+    // Safety timeout to prevent eternal loading
+    const timeout = setTimeout(() => {
+      setIsAuthenticated(prev => prev === null ? false : prev);
+    }, 3000);
+
+    try {
+      const response = await fetch(`/api/me?t=${Date.now()}`, { credentials: 'include' });
+      if (!response.ok) {
+        setIsAuthenticated(false);
+        return;
+      }
+      const data = await response.json();
+      setIsAuthenticated(!!data.authenticated);
+    } catch (err) {
+      console.error('Auth check failed:', err);
+      setIsAuthenticated(false);
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shared = params.get('shared');
+    if (shared) {
+      setSharedPlanId(shared);
+    } else {
+      checkAuth();
+    }
+  }, []);
+
+  if (sharedPlanId) {
+    return <PublicPlanView planId={sharedPlanId} />;
+  }
+
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen bg-[#F5F5F0] flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Login onLogin={() => setIsAuthenticated(true)} />;
+  }
+
   return (
     <AppProvider>
-      <MainContent />
+      <MainContent onLogout={() => setIsAuthenticated(false)} />
     </AppProvider>
   );
 }
