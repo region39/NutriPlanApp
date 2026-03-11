@@ -187,6 +187,9 @@ db.exec(`
   );
 `);
 
+// Ensure default settings exist
+db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES ('authMode', 'password')").run();
+
 // Password recovery mechanism: check for reset_password.txt in root directory
 const resetFile = path.join(process.cwd(), 'reset_password.txt');
 if (fs.existsSync(resetFile)) {
@@ -581,7 +584,6 @@ async function startServer() {
   // Auth Middleware
   const requireAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
     // Skip auth for public routes
-    // Note: req.path is relative to the mount point (/api)
     if (
       req.path.startsWith('/public/') || 
       req.path.startsWith('/images/') || 
@@ -590,6 +592,12 @@ async function startServer() {
       req.path === '/me' ||
       req.path === '/check-admin'
     ) {
+      return next();
+    }
+
+    // Check if auth is disabled in settings
+    const authModeSetting = db.prepare("SELECT value FROM settings WHERE key = 'authMode'").get() as any;
+    if (authModeSetting && authModeSetting.value === 'none') {
       return next();
     }
 
@@ -666,16 +674,22 @@ async function startServer() {
   });
 
   app.get("/api/me", (req, res) => {
+    // Check if auth is disabled in settings
+    const authModeSetting = db.prepare("SELECT value FROM settings WHERE key = 'authMode'").get() as any;
+    if (authModeSetting && authModeSetting.value === 'none') {
+      return res.json({ authenticated: true, username: 'guest', authMode: 'none' });
+    }
+
     const token = req.cookies.auth_token;
     if (!token) {
-      return res.json({ authenticated: false });
+      return res.json({ authenticated: false, authMode: 'password' });
     }
 
     try {
       const decoded = jwt.verify(token, JWT_SECRET) as any;
-      res.json({ authenticated: true, username: decoded.username });
+      res.json({ authenticated: true, username: decoded.username, authMode: 'password' });
     } catch (err) {
-      res.json({ authenticated: false });
+      res.json({ authenticated: false, authMode: 'password' });
     }
   });
 

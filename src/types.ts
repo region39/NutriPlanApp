@@ -71,4 +71,5 @@ export interface Settings {
   calculationMethod: 'proportional' | 'fixed' | 'manual';
   mealTypes: { id: string; label: string }[];
   mealCategories: string[];
+  authMode: 'password' | 'none';
 }

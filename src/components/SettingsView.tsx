@@ -312,6 +312,52 @@ export const SettingsView: React.FC = () => {
             </div>
           </div>
 
+          {/* Authentication Mode */}
+          <div className="bg-white p-6 rounded-2xl border border-black/5 shadow-sm">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
+                <Lock size={20} />
+              </div>
+              <h3 className="font-bold text-lg">Авторизация</h3>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 p-3 rounded-xl border border-black/5 bg-gray-50">
+                <input 
+                  type="radio" 
+                  id="auth_password" 
+                  name="authMode" 
+                  className="w-4 h-4 text-emerald-600 focus:ring-emerald-500"
+                  checked={settings.authMode === 'password'}
+                  onChange={() => updateSettings({ ...settings, authMode: 'password' })}
+                />
+                <label htmlFor="auth_password" className="flex-1 cursor-pointer">
+                  <span className="block font-medium text-sm">По паролю</span>
+                  <span className="block text-[10px] text-gray-400">
+                    Требуется ввод логина и пароля при входе.
+                  </span>
+                </label>
+              </div>
+
+              <div className="flex items-center gap-3 p-3 rounded-xl border border-black/5 bg-gray-50">
+                <input 
+                  type="radio" 
+                  id="auth_none" 
+                  name="authMode" 
+                  className="w-4 h-4 text-emerald-600 focus:ring-emerald-500"
+                  checked={settings.authMode === 'none'}
+                  onChange={() => updateSettings({ ...settings, authMode: 'none' })}
+                />
+                <label htmlFor="auth_none" className="flex-1 cursor-pointer">
+                  <span className="block font-medium text-sm">Без пароля</span>
+                  <span className="block text-[10px] text-gray-400">
+                    Вход в систему выполняется автоматически.
+                  </span>
+                </label>
+              </div>
+            </div>
+          </div>
+
           {/* AI Instructions */}
           <div className="bg-indigo-600 p-6 rounded-2xl text-white shadow-lg shadow-indigo-600/20">
             <h4 className="font-bold mb-3 flex items-center gap-2">

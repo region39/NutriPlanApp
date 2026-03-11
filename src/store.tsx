@@ -43,7 +43,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     deviation: 5,
     calculationMethod: 'proportional',
     mealTypes: MEAL_TYPES,
-    mealCategories: DEFAULT_SUB_ROWS
+    mealCategories: DEFAULT_SUB_ROWS,
+    authMode: 'password'
   });
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -264,7 +265,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           deviation: Number(data.deviation) || 5,
           calculationMethod: data.calculationMethod as any || 'proportional',
           mealTypes: data.mealTypes ? JSON.parse(data.mealTypes) : MEAL_TYPES,
-          mealCategories: data.mealCategories ? JSON.parse(data.mealCategories) : DEFAULT_SUB_ROWS
+          mealCategories: data.mealCategories ? JSON.parse(data.mealCategories) : DEFAULT_SUB_ROWS,
+          authMode: (data.authMode as any) || 'password'
         });
       }
     } catch (err) {
