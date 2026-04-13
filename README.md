@@ -1,19 +1,92 @@
 <div align="center">
 
+# NutriPlan+
+
+**Интеллектуальный калькулятор рационов для профессионального планирования питания**
+
 </div>
 
-# Run and deploy your app
+## Описание
 
-This contains everything you need to run your app locally.
+NutriPlan+ — это веб-приложение для профессионального планирования питания, которое помогает создавать сбалансированные рационы, рассчитывать нутриенты и генерировать планы питания.
 
+## Функционал
 
-## Run Locally
+- **Аутентификация пользователей** — безопасный вход и регистрация
+- **Панель управления (Dashboard)** — обзор статистики и быстрых действий
+- **База продуктов и блюд** — управление ингредиентами и рецептами
+- **Конструктор блюд** — создание собственных рецептов из ингредиентов
+- **Планировщик питания** — составление дневных/недельных рационов
+- **Генерация отчетов** — экспорт планов в PDF и изображения
+- **Настройки** — персонализация параметров приложения
 
-**Prerequisites:**  Node.js
+## Технологии
 
+- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS, Motion
+- **Backend:** Express.js, better-sqlite3
+- **UI компоненты:** Lucide React, Recharts, jsPDF, QRCode
+- **Аутентификация:** JWT, bcryptjs
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Запуск локально
+
+**Требования:** Node.js
+
+1. Установите зависимости:
+   ```bash
+   npm install
+   ```
+
+2. Создайте файл `.env.local` на основе `.env.example`:
+   ```bash
+   cp .env.example .env.local
+   ```
+
+3. Настройте переменные окружения в `.env.local`:
+   - `GEMINI_API_KEY` — ваш API ключ Gemini AI
+   - `APP_URL` — URL вашего приложения
+
+4. Запустите приложение в режиме разработки:
+   ```bash
+   npm run dev
+   ```
+
+5. Откройте браузер по адресу `http://localhost:5173`
+
+## Доступные скрипты
+
+| Команда | Описание |
+|---------|----------|
+| `npm run dev` | Запуск сервера разработки |
+| `npm run start` | Запуск продакшн-сервера |
+| `npm run build` | Сборка приложения для продакшна |
+| `npm run preview` | Предпросмотр собранной версии |
+| `npm run clean` | Очистка директории dist |
+| `npm run lint` | Проверка типов TypeScript |
+
+## Структура проекта
+
+```
+├── src/                    # Исходный код frontend
+│   ├── components/         # React компоненты
+│   ├── App.tsx            # Главный компонент
+│   ├── main.tsx           # Точка входа
+│   ├── store.tsx          # Управление состоянием
+│   └── types.ts           # TypeScript типы
+├── server.ts              # Backend сервер (Express)
+├── migrate_products.ts    # Скрипт миграции данных
+├── nutriplan.db           # SQLite база данных
+├── package.json           # Зависимости и скрипты
+└── vite.config.ts         # Конфигурация Vite
+```
+
+## Переменные окружения
+
+| Переменная | Описание | Обязательна |
+|------------|----------|-------------|
+| `GEMINI_API_KEY` | API ключ для Gemini AI | Да |
+| `APP_URL` | URL приложения | Да |
+| `JWT_SECRET` | Секретный ключ для JWT (опционально) | Нет |
+
+## Лицензия
+
+Частный проект (private)
